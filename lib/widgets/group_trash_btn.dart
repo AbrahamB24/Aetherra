@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
 import 'aetherra_dialog.dart';
@@ -35,10 +35,16 @@ class _GroupTrashBtnState extends State<GroupTrashBtn> {
       onExit:  (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: _tap,
-        child: Icon(
-          Icons.delete_outline,
-          color: Colors.red.withValues(alpha: _hovered ? 1.0 : 0.45),
-          size: 14,
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Center(
+            child: Icon(
+              Icons.delete_outline,
+              color: Colors.red.withValues(alpha: _hovered ? 1.0 : 0.45),
+              size: 14,
+            ),
+          ),
         ),
       ),
     );

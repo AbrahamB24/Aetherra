@@ -55,9 +55,11 @@ class _CrudActionBtnState extends State<CrudActionBtn> {
     cursor: SystemMouseCursors.click,
     child: GestureDetector(
       onTap: widget.onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Icon(widget.icon,
-          color: widget.color.withValues(alpha: _hovered ? 1.0 : widget.color.a),
-          size: 17))));
+      behavior: HitTestBehavior.opaque,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        child: Center(
+          child: Icon(widget.icon,
+            color: widget.color.withValues(alpha: _hovered ? 1.0 : widget.color.a),
+            size: 17)))));
 }

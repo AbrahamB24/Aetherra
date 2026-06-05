@@ -477,37 +477,45 @@ class _ArmyRowCardState extends State<_ArmyRowCard> {
                         Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                           GestureDetector(
                             onTap: hasLore ? () => setState(() => _loreExpanded = !_loreExpanded) : null,
-                            child: MouseRegion(
-                              cursor: hasLore ? SystemMouseCursors.click : MouseCursor.defer,
-                              onEnter: hasLore ? (_) => setState(() => _loreHovered = true)  : null,
-                              onExit:  hasLore ? (_) => setState(() => _loreHovered = false) : null,
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 80),
-                                opacity: hasLore ? (_loreExpanded || _loreHovered ? 1.0 : 0.55) : 0.2,
-                                child: Icon(
-                                  _loreExpanded ? Icons.menu_book : Icons.menu_book_outlined,
-                                  color: AppColors.gold, size: 18,
-                                  shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])))),
+                            behavior: HitTestBehavior.opaque,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                              child: Center(
+                                child: MouseRegion(
+                                  cursor: hasLore ? SystemMouseCursors.click : MouseCursor.defer,
+                                  onEnter: hasLore ? (_) => setState(() => _loreHovered = true)  : null,
+                                  onExit:  hasLore ? (_) => setState(() => _loreHovered = false) : null,
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 80),
+                                    opacity: hasLore ? (_loreExpanded || _loreHovered ? 1.0 : 0.55) : 0.2,
+                                    child: Icon(
+                                      _loreExpanded ? Icons.menu_book : Icons.menu_book_outlined,
+                                      color: AppColors.gold, size: 18,
+                                      shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]))))))),
                           const SizedBox(width: 10),
                           GestureDetector(
                             onTap: () => setState(() => _unitsExpanded = !_unitsExpanded),
-                            child: MouseRegion(
-                              cursor: SystemMouseCursors.click,
-                              onEnter: (_) => setState(() => _unitsHovered = true),
-                              onExit:  (_) => setState(() => _unitsHovered = false),
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 80),
-                                opacity: _unitsExpanded || _unitsHovered ? 1.0 : 0.55,
-                                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                  Text('$units',
-                                    style: GoogleFonts.cinzel(
-                                      color: AppColors.gold, fontSize: 13,
-                                      shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
-                                  const SizedBox(width: 3),
-                                  Icon(_unitsExpanded ? Icons.group : Icons.group_outlined,
-                                    color: AppColors.gold, size: 18,
-                                    shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]),
-                                ])))),
+                            behavior: HitTestBehavior.opaque,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                              child: Center(
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  onEnter: (_) => setState(() => _unitsHovered = true),
+                                  onExit:  (_) => setState(() => _unitsHovered = false),
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 80),
+                                    opacity: _unitsExpanded || _unitsHovered ? 1.0 : 0.55,
+                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                      Text('$units',
+                                        style: GoogleFonts.cinzel(
+                                          color: AppColors.gold, fontSize: 13,
+                                          shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
+                                      const SizedBox(width: 3),
+                                      Icon(_unitsExpanded ? Icons.group : Icons.group_outlined,
+                                        color: AppColors.gold, size: 18,
+                                        shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]),
+                                    ]))))))),
                           const Spacer(),
                           Row(mainAxisSize: MainAxisSize.min, children: [
                             BannerStat('$_cp',   'AP'),

@@ -1957,11 +1957,16 @@ class _FacPhotoIconState extends State<_FacPhotoIcon> {
     onEnter: (_) => setState(() => _hovered = true),
     onExit:  (_) => setState(() => _hovered = false),
     cursor: SystemMouseCursors.click,
-    child: GestureDetector(onTap: widget.onTap,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 80),
-        opacity: _hovered ? 1.0 : 0.45,
-        child: Icon(widget.icon, color: widget.color, size: 20))));
+    child: GestureDetector(
+      onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        child: Center(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 80),
+            opacity: _hovered ? 1.0 : 0.45,
+            child: Icon(widget.icon, color: widget.color, size: 20))))));
 }
 
 class _FacEditOverlay extends StatefulWidget {
@@ -1978,16 +1983,20 @@ class _FacEditOverlayState extends State<_FacEditOverlay> {
     cursor: SystemMouseCursors.click,
     child: GestureDetector(
       onTap: widget.onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
-        padding: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: AppColors.dark.withValues(alpha: _hovered ? 0.92 : 0.70),
-          border: Border.all(
-            color: AppColors.gold.withValues(alpha: _hovered ? 0.9 : 0.4))),
-        child: Icon(widget.icon,
-          color: AppColors.gold.withValues(alpha: _hovered ? 1.0 : 0.65),
-          size: 14))));
+      behavior: HitTestBehavior.opaque,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        child: Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 80),
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: AppColors.dark.withValues(alpha: _hovered ? 0.92 : 0.70),
+              border: Border.all(
+                color: AppColors.gold.withValues(alpha: _hovered ? 0.9 : 0.4))),
+            child: Icon(widget.icon,
+              color: AppColors.gold.withValues(alpha: _hovered ? 1.0 : 0.65),
+              size: 14))))));
 }
 
 class _FacPicBtn extends StatefulWidget {

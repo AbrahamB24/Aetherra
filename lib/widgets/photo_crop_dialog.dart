@@ -528,8 +528,12 @@ class _CropIconBtnState extends State<_CropIconBtn> {
     cursor: SystemMouseCursors.click,
     child: GestureDetector(
       onTap: widget.onTap,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 80),
-        opacity: _hovered ? 1.0 : 0.55,
-        child: Icon(widget.icon, color: widget.color, size: 20))));
+      behavior: HitTestBehavior.opaque,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        child: Center(
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 80),
+            opacity: _hovered ? 1.0 : 0.55,
+            child: Icon(widget.icon, color: widget.color, size: 20))))));
 }
