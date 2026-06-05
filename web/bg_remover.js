@@ -24,6 +24,11 @@ async function _getLib() {
 }
 
 window.aetherraRemoveBg = async function (base64Input) {
+  // iOS/iPadOS Safari cannot handle the ~100 MB WASM model — tab crashes.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) throw new Error('Background removal is not supported on iOS/iPadOS due to memory constraints.');
+
   const removeBackground = await _getLib();
 
   console.log('[bg_remover] Decoding input…');

@@ -252,12 +252,14 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
       title: Text('Workshop',
         style: GoogleFonts.cinzel(color: gold, fontSize: 17, letterSpacing: 2)),
     ),
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(
               width: 72, height: 72,
               decoration: BoxDecoration(
@@ -305,7 +307,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
           ],
         ),
       ),
-    ),
+    )),
   );
 
   // ═══════════════════════════════════════════════════
@@ -1865,12 +1867,8 @@ class _UpgradeButton extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     width: 240,
     child: OutlinedButton.icon(
-      onPressed: () async {
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      },
+      onPressed: () => launchUrl(Uri.parse(url),
+        mode: LaunchMode.externalApplication),
       icon: const Icon(Icons.add, color: AppColors.dark, size: 16),
       label: Text('Upgrade to Premium',
         style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1.2)),
