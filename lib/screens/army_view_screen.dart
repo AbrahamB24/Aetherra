@@ -18,7 +18,7 @@ import '../widgets/photo_crop_dialog.dart';
 import '../widgets/unit_card.dart';
 import '../widgets/group_trash_btn.dart';
 import '../widgets/nav_btn.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'my_factions_screen.dart';
 import '../widgets/dnd_unit_grid.dart';
 import 'army_print_screen.dart';
 import '../game/notifiers/game_notifier.dart';
@@ -822,8 +822,8 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
           aDialogBtn('Cancel', AppColors.grey, () => Navigator.of(context).pop()),
           aDialogBtn('Upgrade', AppColors.gold, () {
             Navigator.of(context).pop();
-            launchUrl(Uri.parse('https://buy.stripe.com/fZu7sLeoSg6ae8jfOWb3q00'),
-              mode: LaunchMode.externalApplication);
+            Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const MyFactionsScreen()));
           }),
         ]);
       return;
@@ -841,8 +841,8 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
           aDialogBtn('Cancel', grey, () => Navigator.of(context).pop()),
           aDialogBtn('Upgrade', gold, () {
             Navigator.of(context).pop();
-            launchUrl(Uri.parse('https://buy.stripe.com/fZu7sLeoSg6ae8jfOWb3q00'),
-              mode: LaunchMode.externalApplication);
+            Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const MyFactionsScreen()));
           }),
         ]);
     }

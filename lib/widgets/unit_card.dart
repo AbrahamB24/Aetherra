@@ -1161,14 +1161,13 @@ class _EditIconBtnState extends State<_EditIconBtn>
         },
         onTapCancel: ()  => setState(() => _pressed = false),
         behavior: HitTestBehavior.opaque,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-          child: Center(
-            child: AnimatedBuilder(
-              animation: _ctrl,
-              builder: (_, __) => Transform.scale(
-                scale: _pressed ? 0.72 : 1.0,
-                child: Icon(Icons.edit_outlined, color: _color, size: 17)))))));
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          child: AnimatedBuilder(
+            animation: _ctrl,
+            builder: (_, __) => Transform.scale(
+              scale: _pressed ? 0.72 : 1.0,
+              child: Icon(Icons.edit_outlined, color: _color, size: 17))))));
 }
 
 // ── +N overflow badge with AP-aware overlay ───────────────────────────────────
