@@ -104,8 +104,8 @@ class _AbilityBadgeState extends State<_AbilityBadge> {
         final topPos     = pos.dy + sz.height + 5;
         final botPos     = screen.height - pos.dy + 5;
         return Stack(children: [
-          Positioned.fill(child: GestureDetector(
-            onTap: _hideOverlay,
+          Positioned.fill(child: Listener(
+            onPointerDown: (_) => _hideOverlay(),
             behavior: HitTestBehavior.translucent,
             child: const SizedBox.expand())),
           Positioned(
