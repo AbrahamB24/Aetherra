@@ -768,7 +768,7 @@ class _ArmyRowState extends State<_ArmyRow> {
   bool _pressed = false;
   Widget? _cachedImg;
   int _atk = 0, _def = 0, _rng = 0, _mob = 0, _con = 0, _cp = 0;
-  List<Map<String, String>> _unitEntries = [];
+  final List<Map<String, String>> _unitEntries = [];
   List<String> _groupOrder = [];
   static final _kIdentity = Matrix4.identity();
 

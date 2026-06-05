@@ -10,6 +10,7 @@ import '../app_theme.dart';
 import '../models/army_state.dart';
 import '../services/army_service.dart';
 import '../services/subscription_service.dart';
+import '../services/game_data_service.dart';
 import '../services/bg_remover.dart';
 import '../widgets/aetherra_dialog.dart';
 import '../widgets/aetherra_text_field.dart';
@@ -134,7 +135,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(0, 8, 0, 2),
               child: Center(child: PressBtn(
-                label: 'New Group',
+                label: 'New Cohort',
                 centered: false,
                 fontSize: 14,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
@@ -756,11 +757,11 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
   void _addGroupDialog(BuildContext context, ArmyState army) {
     final ctrl = TextEditingController();
     showAetherraDialog(context,
-      title: 'New Group',
+      title: 'New Cohort',
       content: AetherraTextField(
         controller: ctrl,
         autofocus: true,
-        hintText: 'Group name...'),
+        hintText: 'Cohort name...'),
       actions: [
         aDialogBtn('Cancel', grey, () => Navigator.pop(context)),
         aDialogBtn('Add', gold, () {
@@ -786,6 +787,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
       return;
     }
     final isPremium = SubscriptionService.isPremium;
+    final isUserUnit = GameDataService.userUnits.any((u) => u['id'] == unit.unit.id);
 
     void showPremiumMsg() {
       showAetherraDialog(context,
@@ -818,7 +820,9 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
     final nameCtrl = TextEditingController(
       text: unit.customName.isNotEmpty
         ? unit.customName : unit.unit.name);
-    final loreCtrl = TextEditingController(text: unit.lore ?? '');
+    // Official units show their synchronized lore (read-only); user units show custom lore
+    final loreCtrl = TextEditingController(
+      text: isUserUnit ? (unit.lore ?? '') : (unit.unit.lore ?? ''));
     bool removingBg = false;
     bool placeholderHovered = false;
     String selColor = unit.bgColor ?? '#1E1A15';
@@ -843,10 +847,14 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
               const SizedBox(height: 14),
               Text('Edit Unit', style: GoogleFonts.cinzel(color: gold, fontSize: 17)),
               const SizedBox(height: 16),
-              AetherraTextField(
-                controller: nameCtrl,
-                hintText: 'Display Name...',
-                style: GoogleFonts.cinzel(color: gold, fontSize: 13)),
+              if (isUserUnit)
+                AetherraTextField(
+                  controller: nameCtrl,
+                  hintText: 'Display Name...',
+                  style: GoogleFonts.cinzel(color: gold, fontSize: 13))
+              else
+                Text(nameCtrl.text,
+                  style: GoogleFonts.cinzel(color: gold, fontSize: 15)),
               const SizedBox(height: 16),
 
               // photo
@@ -1009,11 +1017,20 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                 style: GoogleFonts.cinzel(color: grey.withValues(alpha: 0.85),
                   fontSize: 10, fontStyle: FontStyle.italic)),
               const SizedBox(height: 12),
-              premiumLock(AetherraTextField(
-                controller: loreCtrl,
-                hintText: 'Lore: origin, history, tactics...',
-                maxLines: 4,
-                style: GoogleFonts.cinzel(color: grey, fontSize: 12, height: 1.5))),
+              if (isUserUnit)
+                premiumLock(AetherraTextField(
+                  controller: loreCtrl,
+                  hintText: 'Lore: origin, history, tactics...',
+                  minLines: 3, maxLines: null,
+                  style: GoogleFonts.cinzel(color: grey, fontSize: 12, height: 1.5)))
+              else if (loreCtrl.text.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.gold.withValues(alpha: 0.2))),
+                  child: Text(loreCtrl.text,
+                    style: GoogleFonts.cinzel(color: grey, fontSize: 12, height: 1.5))),
               const SizedBox(height: 16),
 
               // save button
@@ -1021,11 +1038,13 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      unit.customName = nameCtrl.text.trim();
+                      if (isUserUnit) unit.customName = nameCtrl.text.trim();
                       if (isPremium) {
                         unit.bgColor = selColor;
-                        final l = loreCtrl.text.trim();
-                        unit.lore = l.isEmpty ? null : l;
+                        if (isUserUnit) {
+                          final l = loreCtrl.text.trim();
+                          unit.lore = l.isEmpty ? null : l;
+                        }
                       }
                     });
                     _autoSave(army);
@@ -1067,12 +1086,14 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
               Expanded(child: Text(name.toUpperCase(),
                 style: GoogleFonts.cinzel(
                   color: gold, fontSize: 13, letterSpacing: 2))),
-              Text('· ${army.units.where((u) => u.groupName == name).length} units',
-                style: GoogleFonts.cinzel(color: grey, fontSize: 12)),
+              Text('· ${army.units.where((u) => u.groupName == name).length} u',
+                style: GoogleFonts.cinzel(color: grey, fontSize: 12),
+                overflow: TextOverflow.ellipsis),
               const SizedBox(width: 6),
               Text(
                 '${army.units.where((u) => u.groupName == name).fold(0, (s, u) => s + u.unit.cost)} pts',
-                style: GoogleFonts.cinzel(color: grey, fontSize: 12)),
+                style: GoogleFonts.cinzel(color: grey, fontSize: 12),
+                overflow: TextOverflow.ellipsis),
               const SizedBox(width: 8),
               GroupTrashBtn(
                 groupName: name,

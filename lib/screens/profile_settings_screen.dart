@@ -154,10 +154,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     try {
       await Supabase.instance.client.auth.signOut();
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.dark,
         content: Text('Sign out failed.',
           style: GoogleFonts.cinzel(color: Colors.red.shade300))));
+      }
     }
   }
 
@@ -173,10 +175,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         text: json,
         subject: 'Aetherra — My Army Data'));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.dark,
         content: Text('Export failed: ${_errMsg(e)}',
           style: GoogleFonts.cinzel(color: Colors.red.shade300))));
+      }
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -199,20 +203,24 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       await Supabase.instance.client.rpc('delete_user');
       await Supabase.instance.client.auth.signOut();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.dark,
         content: Text(_errMsg(e),
           style: GoogleFonts.cinzel(color: Colors.red.shade300))));
+      }
     }
   }
 
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.dark,
         content: Text('Could not open link.',
           style: GoogleFonts.cinzel(color: grey))));
+      }
     }
   }
 

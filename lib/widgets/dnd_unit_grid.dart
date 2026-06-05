@@ -1,5 +1,5 @@
 ﻿import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/army_state.dart';
@@ -336,7 +336,9 @@ class _Tile extends StatelessWidget {
               locked: unit.isEmbedded && !SubscriptionService.isPremium),
             if (badge != null && trailingBuilder == null) badge!(unit),
           ]);
-          if (kIsWeb) {
+          final isTouch = defaultTargetPlatform == TargetPlatform.android ||
+                          defaultTargetPlatform == TargetPlatform.iOS;
+          if (!isTouch) {
             return Draggable<ArmyUnit>(
               data: unit,
               onDragStarted: () => grid.startDrag(unit),

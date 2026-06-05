@@ -303,6 +303,7 @@ class _DevScreenState extends State<DevScreen>
             MapEntry('Infantry','Infantry'), MapEntry('Cavalry','Cavalry'),
             MapEntry('Shooting','Shooting'), MapEntry('Artillery','Artillery'),
             MapEntry('Hero','Hero'), MapEntry('Monster','Monster'),
+            MapEntry('Flyer','Flyer'),
           ],
           selected: _unitTypeF,
           onChanged: (s) => setState(() { _unitTypeF.clear(); _unitTypeF.addAll(s); })),
@@ -934,7 +935,7 @@ class _DevScreenState extends State<DevScreen>
               AetherraTextField(
                 controller: loreCtrl,
                 hintText: 'Lore: origin, history, tactics...',
-                maxLines: 3,
+                minLines: 3, maxLines: null,
                 style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 12, height: 1.5)),
               const SizedBox(height: 14),
 
@@ -952,7 +953,7 @@ class _DevScreenState extends State<DevScreen>
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   _lbl('Type'),
                   _dd<String>(value: selType,
-                    items: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster']
+                    items: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
                       .map((t) => DropdownMenuItem(value: t,
                         child: Text(t, style: const TextStyle(color: AppColors.textLight)))).toList(),
                     onChanged: (v) => setS(() {
@@ -971,7 +972,7 @@ class _DevScreenState extends State<DevScreen>
                 _stI('DEF', defCtrl, setS), const SizedBox(width: 4),
                 _stI('SHO', rngCtrl, setS), const SizedBox(width: 4),
                 _stI('MOB', mobCtrl, setS,
-                  max: selType == 'Cavalry' || selType == 'Hero' || selType == 'Monster' ? 20 : 8),
+                  max: selType == 'Cavalry' || selType == 'Hero' || selType == 'Monster' || selType == 'Flyer' ? 20 : 8),
                 const SizedBox(width: 4),
                 _stI('STR', conCtrl, setS),
                 const SizedBox(width: 4),
@@ -1505,7 +1506,7 @@ class _DevScreenState extends State<DevScreen>
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6, runSpacing: 6,
-                  children: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster']
+                  children: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
                     .map((t) {
                       final on = selTypes.contains(t);
                       final tc = typeColor(t);
@@ -1610,8 +1611,8 @@ class _DevScreenState extends State<DevScreen>
                         nav.pop();
                         _load();
                         sm.showSnackBar(_snackBar('"$name" saved!'));
-                        // Recalculate affected unit costs in background (non-critical)
-                        if (isBuiltin) _recalcAffectedUnits(name).catchError((_) {});
+                        // Recalculate all units that use this ability
+                        _recalcAffectedUnits(name).catchError((_) {});
                       } catch (e) {
                         _toast('Save failed: ${e.toString().split('\n').first}');
                       }
@@ -2024,37 +2025,29 @@ class _CreateBtnState extends State<_CreateBtn> {
   bool _hovered = false;
   bool _pressed = false;
   @override Widget build(BuildContext context) => Center(
-    child: FractionallySizedBox(
-      widthFactor: 0.28,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit:  (_) => setState(() => _hovered = false),
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTapDown:   (_) => setState(() => _pressed = true),
-          onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
-          onTapCancel: ()  => setState(() => _pressed = false),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              color: _pressed
-                  ? AppColors.gold.withValues(alpha: 0.75)
-                  : _hovered
-                      ? AppColors.gold.withValues(alpha: 0.88)
-                      : AppColors.gold,
-              boxShadow: const [
-                BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
-              ]),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min, children: [
-              Icon(widget.icon, color: AppColors.dark, size: 15),
-              const SizedBox(width: 7),
-              Flexible(child: Text(widget.label, style: GoogleFonts.cinzel(
-                color: AppColors.dark, fontSize: 13, letterSpacing: 1.1,
-                fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis, maxLines: 1)),
-            ]))))));
+    child: MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown:   (_) => setState(() => _pressed = true),
+        onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
+        onTapCancel: ()  => setState(() => _pressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
+          decoration: BoxDecoration(
+            color: _pressed
+                ? AppColors.gold.withValues(alpha: 0.75)
+                : _hovered
+                    ? AppColors.gold.withValues(alpha: 0.88)
+                    : AppColors.gold,
+            boxShadow: const [
+              BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
+            ]),
+          child: Text(widget.label, style: GoogleFonts.cinzel(
+            color: AppColors.dark, fontSize: 13, letterSpacing: 1.1,
+            fontWeight: FontWeight.w600))))));
 }
 
 class _DevTabBtn extends StatefulWidget {

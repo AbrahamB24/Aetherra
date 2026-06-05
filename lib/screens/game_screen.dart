@@ -1829,17 +1829,17 @@ class _BagBtnState extends State<_BagBtn> {
               ? (_pressed ? c.withValues(alpha: 0.45)
                 : c.withValues(alpha: _hovered ? 0.65 : 1.0))
               : c.withValues(alpha: 0.2)),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
               widget.count != null
                 ? '${widget.label} (${widget.count})'
                 : widget.label,
               style: GoogleFonts.cinzel(
                 color: active ? AppColors.dark : AppColors.dark.withValues(alpha: 0.4),
                 fontSize: 11, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis, maxLines: 1),
-          ]))));
+              textAlign: TextAlign.center)))));
+
   }
 }
 

@@ -511,7 +511,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
         const SizedBox(width: 8),
         FilterBtn(
           allLabel: 'All Types',
-          options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster']
+          options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
             .map((t) => MapEntry(t, t)).toList(),
           selected: _unitTypeF,
           onChanged: (s) => setState(() { _unitTypeF.clear(); _unitTypeF.addAll(s); })),
@@ -613,7 +613,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
           child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
             FilterBtn(
               allLabel: 'All Types',
-              options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster']
+              options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
                 .map((t) => MapEntry(t, t)).toList(),
               selected: _abTypeF,
               onChanged: (s) => setState(() { _abTypeF.clear(); _abTypeF.addAll(s); })),
@@ -690,6 +690,10 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
 
   Future<void> _openFactionForm({Map<String, dynamic>? existing, bool isDuplicate = false}) async {
     final isEdit    = existing != null && !isDuplicate;
+    // Official factions have no user_id — their lore is read-only
+    final isUserFaction = !isEdit || isDuplicate ||
+        existing['user_id'] != null ||
+        GameDataService.userFactions.any((f) => f['id'] == existing['id']);
     final factionId = isEdit
         ? existing['id'] as String
         : 'uf_${DateTime.now().millisecondsSinceEpoch}';
@@ -748,7 +752,11 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
 
               // ── Name ──────────────────────────────────
               _lbl('Name'),
-              _tf(nameCtrl, 'e.g. Elves', onChanged: (_) {}),
+              if (isUserFaction)
+                _tf(nameCtrl, 'e.g. Elves', onChanged: (_) {})
+              else
+                Text(nameCtrl.text,
+                  style: GoogleFonts.cinzel(color: gold, fontSize: 15)),
               const SizedBox(height: 16),
 
               // ── Logo preview (full-width, on chosen bg color) ──
@@ -886,13 +894,22 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               const SizedBox(height: 10),
 
               _lbl('Lore (optional)'),
-              AetherraTextField(
-                controller: loreCtrl,
-                minLines: 4, maxLines: null,
-                style: const TextStyle(color: AppColors.textLight, fontSize: 14, height: 1.5),
-                hintText: 'Lore: origin, history, culture...',
-                hintStyle: TextStyle(color: grey.withValues(alpha: 0.5)),
-                contentPadding: const EdgeInsets.all(12)),
+              if (isUserFaction)
+                AetherraTextField(
+                  controller: loreCtrl,
+                  minLines: 4, maxLines: null,
+                  style: const TextStyle(color: AppColors.textLight, fontSize: 14, height: 1.5),
+                  hintText: 'Lore: origin, history, culture...',
+                  hintStyle: TextStyle(color: grey.withValues(alpha: 0.5)),
+                  contentPadding: const EdgeInsets.all(12))
+              else if (loreCtrl.text.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.gold.withValues(alpha: 0.2))),
+                  child: Text(loreCtrl.text,
+                    style: const TextStyle(color: AppColors.textLight, fontSize: 14, height: 1.5))),
               const SizedBox(height: 16),
 
               if (isEdit || isDuplicate) ...[
@@ -949,7 +966,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                     final payload = <String, dynamic>{
                       'name': name, 'color': selColor,
                     };
-                    final loreVal = loreCtrl.text.trim();
+                    final loreVal = isUserFaction ? loreCtrl.text.trim() : '';
                     final extra   = <String, dynamic>{
                       'lore':      loreVal.isEmpty ? null : loreVal,
                       'image_b64': imageB64,
@@ -1041,6 +1058,10 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
   // ═══════════════════════════════════════════════════
   Future<void> _openUnitForm(Map<String, dynamic>? existing, {bool isDuplicate = false}) async {
     final isNew    = existing == null || isDuplicate;
+    // Official units (from custom_units) are read-only for lore; user units are editable
+    final isUserUnit = isNew ||
+        existing['user_id'] != null ||
+        GameDataService.userUnits.any((u) => u['id'] == existing['id']);
     final nameCtrl = TextEditingController(
       text: isDuplicate ? 'Copy of ${existing!['name']}' : existing?['name'] ?? '');
     final atkCtrl  = TextEditingController(text: '${existing?['atk']    ?? 4}');
@@ -1050,6 +1071,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
     final conCtrl  = TextEditingController(text: '${existing?['con_val'] ?? 3}');
     final cpCtrl   = TextEditingController(text: '${existing?['cp']     ?? 0}');
     final loreCtrl = TextEditingController(text: existing?['lore'] as String? ?? '');
+
 
     // Default faction: user's first, or first available
     final defaultFac = _allFacs.isNotEmpty ? _allFacs.first['id'] as String : '';
@@ -1102,7 +1124,11 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                 style: GoogleFonts.cinzel(color: gold, fontSize: 17, letterSpacing: 1.2)),
               const SizedBox(height: 14),
               _lbl('Unit Name'),
-              _tf(nameCtrl, 'e.g. Elite Guards', onChanged: (_) => setS(() {})),
+              if (isUserUnit)
+                _tf(nameCtrl, 'e.g. Elite Guards', onChanged: (_) => setS(() {}))
+              else
+                Text(nameCtrl.text,
+                  style: GoogleFonts.cinzel(color: gold, fontSize: 15)),
               const SizedBox(height: 14),
 
               // ── Photo ───────────────────────────────────
@@ -1236,11 +1262,20 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                   fontSize: 10, fontStyle: FontStyle.italic)),
               const SizedBox(height: 8),
               _lbl('Lore (optional)'),
-              AetherraTextField(
-                controller: loreCtrl,
-                hintText: 'Lore: origin, history, tactics...',
-                maxLines: 3,
-                style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 12, height: 1.5)),
+              if (isUserUnit)
+                AetherraTextField(
+                  controller: loreCtrl,
+                  hintText: 'Lore: origin, history, tactics...',
+                  minLines: 3, maxLines: null,
+                  style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 12, height: 1.5))
+              else if (loreCtrl.text.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.gold.withValues(alpha: 0.2))),
+                  child: Text(loreCtrl.text,
+                    style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 12, height: 1.5))),
               const SizedBox(height: 14),
 
               Row(children: [
@@ -1261,7 +1296,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                   _lbl('Type'),
                   _dd<String>(
                     value: selType,
-                    items: ['Infantry', 'Cavalry', 'Shooting', 'Artillery', 'Hero', 'Monster']
+                    items: ['Infantry', 'Cavalry', 'Shooting', 'Artillery', 'Hero', 'Monster', 'Flyer']
                         .map((t) => DropdownMenuItem(value: t,
                           child: Text(t, style: const TextStyle(
                             color: AppColors.textLight)))).toList(),
@@ -1285,7 +1320,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                 _stI('DEF', defCtrl, setS), const SizedBox(width: 4),
                 _stI('SHO', rngCtrl, setS), const SizedBox(width: 4),
                 _stI('MOB', mobCtrl, setS,
-                  max: selType == 'Cavalry' || selType == 'Hero' || selType == 'Monster' ? 20 : 8),
+                  max: selType == 'Cavalry' || selType == 'Hero' || selType == 'Monster' || selType == 'Flyer' ? 20 : 8),
                 const SizedBox(width: 4),
                 _stI('STR', conCtrl, setS),
                 const SizedBox(width: 4),
@@ -1340,7 +1375,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                   'abilities': selAbs,
                   'image_b64': imageB64,
                   'bg_color':  selBgColor,
-                  'lore':      loreCtrl.text.trim().isNotEmpty ? loreCtrl.text.trim() : null,
+                  'lore':      isUserUnit && loreCtrl.text.trim().isNotEmpty ? loreCtrl.text.trim() : null,
                 }),
               const SizedBox(height: 14),
               SizedBox(width: double.infinity,
@@ -1366,7 +1401,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                       'unique_unit': isUniq,
                       'image_b64':   imageB64,
                       'bg_color':    selBgColor,
-                      'lore':        loreCtrl.text.trim().isNotEmpty ? loreCtrl.text.trim() : null,
+                      'lore':        isUserUnit && loreCtrl.text.trim().isNotEmpty ? loreCtrl.text.trim() : null,
                     };
                     Future<void> doSave(Map<String, dynamic> p) async {
                       if (existing != null && !isDuplicate) {
@@ -1495,7 +1530,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               _lbl('Unit Types (leave empty = all types)'),
               const SizedBox(height: 6),
               Wrap(spacing: 6, runSpacing: 6,
-                children: ['Infantry', 'Cavalry', 'Shooting', 'Artillery', 'Hero', 'Monster']
+                children: ['Infantry', 'Cavalry', 'Shooting', 'Artillery', 'Hero', 'Monster', 'Flyer']
                     .map((t) {
                       final on = selTypes.contains(t);
                       final tc = typeColor(t);
@@ -1557,6 +1592,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                       Navigator.pop(ctx);
                       _load();
                       _toast(existing != null && !isDuplicate ? '"$name" updated!' : '"$name" saved!');
+                      _recalcUserUnits(name).catchError((_) {});
                     } catch (e) {
                       _toast('Save failed: ${e.toString().split('\n').first}');
                     }
@@ -1587,6 +1623,28 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                       padding: const EdgeInsets.symmetric(vertical: 12)))),
               ],
             ])))));
+  }
+
+  Future<void> _recalcUserUnits(String abilityName) async {
+    final uid = sb.auth.currentUser?.id;
+    if (uid == null) return;
+    await GameDataService.load();
+    final units = await sb.from('user_units').select('*').eq('user_id', uid);
+    for (final u in List<Map<String, dynamic>>.from(units)) {
+      final abs = List<String>.from(u['abilities'] ?? []);
+      if (!abs.contains(abilityName)) continue;
+      final type = (u['type'] as String?) == 'Ranged' ? 'Shooting' : (u['type'] as String? ?? 'Infantry');
+      final newCost = CostConfig.calcCost(
+        a: u['atk'] as int? ?? 0, d: u['def_val'] as int? ?? 0,
+        s: u['rng'] as int? ?? 0, m: u['mob'] as int? ?? 6,
+        str: u['con_val'] as int? ?? 3, type: type,
+        cpVal: u['cp'] as int? ?? 0, abilities: abs,
+        allAbilityCosts: GameDataService.abilityCosts,
+      );
+      if (newCost != (u['cost'] as int? ?? 0)) {
+        await sb.from('user_units').update({'cost': newCost}).eq('id', u['id'] as String);
+      }
+    }
   }
 
   Future<void> _deleteAbility(Map<String, dynamic> a) async {
@@ -2048,37 +2106,29 @@ class _CreateBtnState extends State<_CreateBtn> {
   bool _hovered = false;
   bool _pressed = false;
   @override Widget build(BuildContext context) => Center(
-    child: FractionallySizedBox(
-      widthFactor: 0.28,
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit:  (_) => setState(() => _hovered = false),
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTapDown:   (_) => setState(() => _pressed = true),
-          onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
-          onTapCancel: ()  => setState(() => _pressed = false),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: BoxDecoration(
-              color: _pressed
-                  ? AppColors.gold.withValues(alpha: 0.75)
-                  : _hovered
-                      ? AppColors.gold.withValues(alpha: 0.88)
-                      : AppColors.gold,
-              boxShadow: const [
-                BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
-              ]),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min, children: [
-              Icon(widget.icon, color: AppColors.dark, size: 15),
-              const SizedBox(width: 7),
-              Flexible(child: Text(widget.label, style: GoogleFonts.cinzel(
-                color: AppColors.dark, fontSize: 13, letterSpacing: 1.1,
-                fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis, maxLines: 1)),
-            ]))))));
+    child: MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown:   (_) => setState(() => _pressed = true),
+        onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
+        onTapCancel: ()  => setState(() => _pressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
+          decoration: BoxDecoration(
+            color: _pressed
+                ? AppColors.gold.withValues(alpha: 0.75)
+                : _hovered
+                    ? AppColors.gold.withValues(alpha: 0.88)
+                    : AppColors.gold,
+            boxShadow: const [
+              BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
+            ]),
+          child: Text(widget.label, style: GoogleFonts.cinzel(
+            color: AppColors.dark, fontSize: 13, letterSpacing: 1.1,
+            fontWeight: FontWeight.w600))))));
 }
 
 class _HoverTab extends StatefulWidget {

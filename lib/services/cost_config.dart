@@ -35,7 +35,7 @@ class CostConfig {
     required int cpVal, required List<String> abilities,
     required Map<String, int> allAbilityCosts,
   }) {
-    final isCav    = type == 'Cavalry';
+    final isCav    = type == 'Cavalry' || type == 'Flyer';
     final mobTable = isCav ? mobC : mobI;
     final mobCost  = mobTable[m.clamp(0, mobTable.length - 1)];
     final conMult  = con[str.clamp(0, 10)];

@@ -41,6 +41,7 @@ class _RosterScreenState extends State<RosterScreen> {
     if (type == 'Artillery') return const Color(0xFFB83030);
     if (type == 'Hero')      return const Color(0xFFC9A84C);
     if (type == 'Monster')   return const Color(0xFF7B55C8);
+    if (type == 'Flyer')     return const Color(0xFF26C6DA);
     return grey;
   }
 
@@ -165,6 +166,8 @@ class _RosterScreenState extends State<RosterScreen> {
                   () => setState(() => _typeFilter = 'Hero')),
                 _chip('Monster', _typeFilter == 'Monster',
                   () => setState(() => _typeFilter = 'Monster')),
+                _chip('Flyer', _typeFilter == 'Flyer',
+                  () => setState(() => _typeFilter = 'Flyer')),
               ]),
             ),
           ]),

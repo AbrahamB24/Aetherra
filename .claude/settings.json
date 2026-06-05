@@ -74,7 +74,17 @@
       "Bash(Format-Table Name, LastWriteTime)",
       "Bash(node -e ' *)",
       "Bash(node fix_game_setup.js)",
-      "Bash(flutter --version)"
+      "Bash(flutter --version)",
+      "Bash(sed -i 's/          child: Row\\(mainAxisAlignment: MainAxisAlignment.center, children: \\\\[/          child: FittedBox\\(fit: BoxFit.scaleDown,/' c:/Users/olivi/aetherra/lib/screens/game_screen.dart)",
+      "Bash(sed -i '/              overflow: TextOverflow.ellipsis, maxLines: 1\\),/d' c:/Users/olivi/aetherra/lib/screens/game_screen.dart)",
+      "Bash(sed -i 's/          \\\\]\\\\\\)\\)\\)\\);/            \\)\\)\\);/' c:/Users/olivi/aetherra/lib/screens/game_screen.dart)",
+      "Bash(xxd)",
+      "Bash(sed -i '1840s/center\\)\\)\\)\\);/center\\)\\)\\)\\)\\)/;s/center\\)\\)\\)\\)\\)/center\\)\\)\\)\\)\\)/' c:/Users/olivi/aetherra/lib/screens/game_screen.dart)",
+      "Bash(sed -n '1840p' c:/Users/olivi/aetherra/lib/screens/game_screen.dart)",
+      "Bash(awk 'NR==1840{print \"              textAlign: TextAlign.center\\)\\)\\)\\)\\);\"} NR==1841&&/^$/{next} NR!=1840{print}' c:/Users/olivi/aetherra/lib/screens/game_screen.dart)",
+      "Bash(mv /tmp/gs_fixed.dart c:/Users/olivi/aetherra/lib/screens/game_screen.dart)",
+      "Bash(awk 'NR==1793{print; print \"              overflow: TextOverflow.ellipsis, maxLines: 1\\),\"} NR!=1793{print}' c:/Users/olivi/aetherra/lib/screens/game_screen.dart)",
+      "Bash(mv /tmp/gs2.dart c:/Users/olivi/aetherra/lib/screens/game_screen.dart)"
     ],
     "additionalDirectories": [
       "C:\\Users\\olivi\\aetherra\\import 'package:flutter"

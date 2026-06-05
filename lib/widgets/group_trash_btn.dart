@@ -16,9 +16,9 @@ class _GroupTrashBtnState extends State<GroupTrashBtn> {
   void _tap() {
     showAetherraDialog<bool>(
       context,
-      title: 'Delete Group?',
+      title: 'Delete Cohort?',
       content: Text(
-        'Delete "${widget.groupName}"? All units in this group will be ungrouped.',
+        'Delete "${widget.groupName}"? All units in this cohort will be disbanded.',
         style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13, height: 1.5),
       ),
       actions: [

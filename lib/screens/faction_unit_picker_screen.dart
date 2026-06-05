@@ -689,7 +689,7 @@ class _TypeDropdown extends StatefulWidget {
 
 class _TypeDropdownState extends State<_TypeDropdown> {
   static const gold  = AppColors.gold;
-  static const types = ['Infantry', 'Cavalry', 'Shooting', 'Artillery', 'Hero', 'Monster'];
+  static const types = ['Infantry', 'Cavalry', 'Shooting', 'Artillery', 'Hero', 'Monster', 'Flyer'];
 
   OverlayEntry? _entry;
   final _link   = LayerLink();

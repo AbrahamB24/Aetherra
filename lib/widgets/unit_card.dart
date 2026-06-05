@@ -176,6 +176,7 @@ IconData typeIcon(String type) {
     case 'artillery': return Icons.architecture;
     case 'hero':      return Icons.star;
     case 'monster':   return Icons.pets;
+    case 'flyer':     return Icons.air;
     default:          return Icons.shield_outlined;
   }
 }
@@ -189,6 +190,7 @@ Widget typeIconWidget(String type, {double size = 24, Color? color}) {
     'artillery' => 'assets/icons/artillery.svg',
     'hero'      => 'assets/icons/hero.svg',
     'monster'   => 'assets/icons/monster.svg',
+    'flyer'     => 'assets/icons/flyer.svg',
     _           => null,
   };
   if (asset != null) {
@@ -207,6 +209,7 @@ Color typeColor(String type) {
     case 'artillery': return const Color(0xFFB83030);
     case 'hero':      return const Color(0xFFC9A84C);
     case 'monster':   return const Color(0xFF7B55C8);
+    case 'flyer':     return const Color(0xFF26C6DA);
     default:          return AppColors.grey;
   }
 }

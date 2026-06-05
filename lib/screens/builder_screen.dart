@@ -395,10 +395,9 @@ class _BuilderScreenState extends State<BuilderScreen> {
                       Text('OVER', style: GoogleFonts.cinzel(color: Colors.red, fontSize: 13)),
                     ],
                   ])))),
-              Row(mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(alignment: WrapAlignment.end, spacing: 6, runSpacing: 6,
                 children: [
-                  _loadStyleBtn('New Group', () => _addGroupDialog(army)),
-                  const SizedBox(width: 6),
+                  _loadStyleBtn('New Cohort', () => _addGroupDialog(army)),
                   PressBtn(
                     label: _saving ? 'Saving…' : _saved ? 'Saved' : 'Save',
                     onTap: _save),
@@ -443,6 +442,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
 
   Future<void> _editUnit(BuildContext context, ArmyUnit unit, ArmyState army) async {
     final isPremium = SubscriptionService.isPremium;
+    final isUserUnit = GameDataService.userUnits.any((u) => u['id'] == unit.unit.id);
 
     void showPremiumMsg() {
       showAetherraDialog(context,
@@ -474,7 +474,8 @@ class _BuilderScreenState extends State<BuilderScreen> {
 
     final nameCtrl = TextEditingController(
       text: unit.customName.isNotEmpty ? unit.customName : unit.unit.name);
-    final loreCtrl = TextEditingController(text: unit.lore ?? '');
+    final loreCtrl = TextEditingController(
+      text: isUserUnit ? (unit.lore ?? '') : (unit.unit.lore ?? ''));
     bool removingBg = false;
     bool placeholderHovered = false;
     String selColor = unit.bgColor ?? '#1E1A15';
@@ -498,10 +499,14 @@ class _BuilderScreenState extends State<BuilderScreen> {
               const SizedBox(height: 14),
               Text('Edit Unit', style: GoogleFonts.cinzel(color: gold, fontSize: 17)),
               const SizedBox(height: 16),
-              AetherraTextField(
-                controller: nameCtrl,
-                hintText: 'Display Name...',
-                style: GoogleFonts.cinzel(color: gold, fontSize: 13)),
+              if (isUserUnit)
+                AetherraTextField(
+                  controller: nameCtrl,
+                  hintText: 'Display Name...',
+                  style: GoogleFonts.cinzel(color: gold, fontSize: 13))
+              else
+                Text(nameCtrl.text,
+                  style: GoogleFonts.cinzel(color: gold, fontSize: 15)),
               const SizedBox(height: 16),
 
               premiumLock(Center(child: Container(
@@ -667,22 +672,33 @@ class _BuilderScreenState extends State<BuilderScreen> {
                 style: GoogleFonts.cinzel(color: grey.withValues(alpha: 0.85),
                   fontSize: 10, fontStyle: FontStyle.italic)),
               const SizedBox(height: 12),
-              premiumLock(AetherraTextField(
-                controller: loreCtrl,
-                hintText: 'Lore: origin, history, tactics...',
-                maxLines: 4,
-                style: GoogleFonts.cinzel(color: grey, fontSize: 12, height: 1.5))),
+              if (isUserUnit)
+                premiumLock(AetherraTextField(
+                  controller: loreCtrl,
+                  hintText: 'Lore: origin, history, tactics...',
+                  minLines: 3, maxLines: null,
+                  style: GoogleFonts.cinzel(color: grey, fontSize: 12, height: 1.5)))
+              else if (loreCtrl.text.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.gold.withValues(alpha: 0.2))),
+                  child: Text(loreCtrl.text,
+                    style: GoogleFonts.cinzel(color: grey, fontSize: 12, height: 1.5))),
               const SizedBox(height: 16),
 
               SizedBox(width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
                     setState(() {
-                      unit.customName = nameCtrl.text.trim();
+                      if (isUserUnit) unit.customName = nameCtrl.text.trim();
                       if (isPremium) {
                         unit.bgColor = selColor;
-                        final l = loreCtrl.text.trim();
-                        unit.lore = l.isEmpty ? null : l;
+                        if (isUserUnit) {
+                          final l = loreCtrl.text.trim();
+                          unit.lore = l.isEmpty ? null : l;
+                        }
                       }
                     });
                     army.refresh();
@@ -734,12 +750,14 @@ class _BuilderScreenState extends State<BuilderScreen> {
               Text(name.toUpperCase(), style: GoogleFonts.cinzel(
                 color: gold, fontSize: 13, letterSpacing: 1.2)),
               const Spacer(),
-              Text('· ${army.units.where((u) => u.groupName == name).length} units',
-                style: GoogleFonts.cinzel(color: grey, fontSize: 12)),
+              Text('· ${army.units.where((u) => u.groupName == name).length} u',
+                style: GoogleFonts.cinzel(color: grey, fontSize: 12),
+                overflow: TextOverflow.ellipsis),
               const SizedBox(width: 6),
               Text(
                 '${army.units.where((u) => u.groupName == name).fold(0, (s, u) => s + u.unit.cost)} pts',
-                style: GoogleFonts.cinzel(color: grey, fontSize: 12)),
+                style: GoogleFonts.cinzel(color: grey, fontSize: 12),
+                overflow: TextOverflow.ellipsis),
               const SizedBox(width: 8),
               GroupTrashBtn(
                 groupName: name,
@@ -754,11 +772,11 @@ class _BuilderScreenState extends State<BuilderScreen> {
   void _addGroupDialog(ArmyState army) {
     final ctrl = TextEditingController();
     showAetherraDialog(context,
-      title: 'New Group',
+      title: 'New Cohort',
       content: AetherraTextField(
         controller: ctrl,
         autofocus: true,
-        hintText: 'Group name…'),
+        hintText: 'Cohort name…'),
       actions: [
         aDialogBtn('Cancel', grey, () => Navigator.pop(context)),
         aDialogBtn('Add', gold, () {
@@ -814,7 +832,7 @@ class _FilterDropdown extends StatefulWidget {
 
 class _FilterDropdownState extends State<_FilterDropdown> {
   static const gold  = AppColors.gold;
-  static const types = ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster'];
+  static const types = ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer'];
 
   OverlayEntry? _entry;
   final _link  = LayerLink();
