@@ -18,6 +18,7 @@ import '../widgets/aetherra_dialog.dart';
 import '../widgets/aetherra_text_field.dart';
 import '../widgets/filter_widgets.dart';
 import '../widgets/group_trash_btn.dart';
+import 'my_factions_screen.dart';
 
 const _kBuilderBgPresets = [
   '#0D0B09', '#08111E', '#0A1A08', '#1A0808',
@@ -486,7 +487,14 @@ class _BuilderScreenState extends State<BuilderScreen> {
         content: Text(
           'Photo, Lore and Background Color are only available with a Premium subscription.',
           style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
-        actions: [aDialogBtn('OK', gold, () => Navigator.of(context).pop())]);
+        actions: [
+          aDialogBtn('Cancel', grey, () => Navigator.of(context).pop()),
+          aDialogBtn('Upgrade', gold, () {
+            Navigator.of(context).pop();
+            Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const MyFactionsScreen()));
+          }),
+        ]);
     }
     Widget premiumLock(Widget child) {
       if (isPremium) return child;
