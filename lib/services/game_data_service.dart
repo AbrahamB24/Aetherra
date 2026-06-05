@@ -44,8 +44,12 @@ class GameDataService {
       if (cfg['atk']  != null) CostConfig.atk  = List<double>.from(cfg['atk']);
       if (cfg['def']  != null) CostConfig.def  = List<double>.from(cfg['def']);
       if (cfg['rng']  != null) CostConfig.rng  = List<double>.from(cfg['rng']);
-      if (cfg['mobI'] != null) CostConfig.mobI = List<double>.from(cfg['mobI']);
-      if (cfg['mobC'] != null) CostConfig.mobC = List<double>.from(cfg['mobC']);
+      // Support both old (mobI/mobC) and new (mob) config keys
+      if (cfg['mob'] != null) {
+        CostConfig.mob = List<double>.from(cfg['mob']);
+      } else if (cfg['mobC'] != null) {
+        CostConfig.mob = List<double>.from(cfg['mobC']);
+      }
       if (cfg['con']  != null) CostConfig.con  = List<double>.from(cfg['con']);
       if (cfg['cp']   != null) CostConfig.cp   = List<double>.from(cfg['cp']);
       if (cfg['formulaDivisor'] != null) {
@@ -65,8 +69,8 @@ class GameDataService {
         'id': 'main',
         'config': {
           'atk':  CostConfig.atk,  'def':  CostConfig.def,
-          'rng':  CostConfig.rng,  'mobI': CostConfig.mobI,
-          'mobC': CostConfig.mobC, 'con':  CostConfig.con,
+          'rng':  CostConfig.rng,  'mob': CostConfig.mob,
+          'con':  CostConfig.con,
           'cp':   CostConfig.cp,
           'formulaDivisor':      CostConfig.formulaDivisor,
           'deletedAbilityNames': deletedBuiltinAbilityNames,

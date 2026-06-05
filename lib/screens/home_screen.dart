@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../app_theme.dart';
 import '../models/app_state.dart';
 import 'new_army_screen.dart';
@@ -156,6 +157,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 32),
             Container(height: 1, color: gold.withValues(alpha: 0.1)),
+            const SizedBox(height: 16),
+            const Center(child: _InstagramLink()),
+            const SizedBox(height: 16),
           ])))
       ])));
   }
@@ -215,6 +219,35 @@ class _NavCardState extends State<_NavCard> {
               color: _hovered ? gold.withValues(alpha: 0.8) : gold.withValues(alpha: 0.2),
               size: 18),
           ]))));
+}
+
+class _InstagramLink extends StatefulWidget {
+  const _InstagramLink();
+  @override State<_InstagramLink> createState() => _InstagramLinkState();
+}
+class _InstagramLinkState extends State<_InstagramLink> {
+  bool _hovered = false;
+  @override Widget build(BuildContext context) =>
+    MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => launchUrl(
+          Uri.parse('https://www.instagram.com/aetherra_tabletop/'),
+          mode: LaunchMode.externalApplication),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 80),
+          opacity: _hovered ? 1.0 : 0.4,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.camera_alt_outlined, color: AppColors.grey, size: 14),
+              const SizedBox(width: 6),
+              Text('@aetherra_tabletop',
+                style: GoogleFonts.cinzel(
+                  color: AppColors.grey, fontSize: 11, letterSpacing: 0.5)),
+            ]))));
 }
 
 class _PopupHoverItem extends StatefulWidget {

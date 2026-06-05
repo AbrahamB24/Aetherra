@@ -10,6 +10,7 @@ import '../services/game_data_service.dart';
 import '../services/army_service.dart';
 import '../widgets/aetherra_dialog.dart';
 import '../widgets/hover_icon_btn.dart';
+import '../widgets/filter_widgets.dart';
 import '../widgets/nav_btn.dart';
 import '../widgets/photo_crop_dialog.dart';
 import '../widgets/unit_card.dart' show PressBtn, BannerUnitsPanel, BannerStat;
@@ -26,7 +27,28 @@ class _ArmiesScreenState extends State<ArmiesScreen> {
   static const gold = AppColors.gold;
 
   List<Map<String, dynamic>> _armies = [];
-  bool _loading = true;
+  bool   _loading  = true;
+  String _sortMode = 'date';
+  bool   _sortAsc  = false;
+
+  List<Map<String, dynamic>> get _sorted {
+    final list = List<Map<String, dynamic>>.from(_armies);
+    list.sort((a, b) {
+      int cmp;
+      switch (_sortMode) {
+        case 'name':
+          cmp = (a['name'] as String? ?? '').compareTo(b['name'] as String? ?? '');
+          break;
+        case 'points':
+          cmp = ((a['total_points'] as int?) ?? 0).compareTo((b['total_points'] as int?) ?? 0);
+          break;
+        default:
+          cmp = ((a['updated_at'] as String?) ?? '').compareTo((b['updated_at'] as String?) ?? '');
+      }
+      return _sortAsc ? cmp : -cmp;
+    });
+    return list;
+  }
 
   @override
   void initState() {
@@ -155,24 +177,61 @@ class _ArmiesScreenState extends State<ArmiesScreen> {
                         MaterialPageRoute(builder: (_) => const NewArmyScreen()));
                       _load();
                     }))))),
-            Expanded(child: _armies.isEmpty
-              ? Center(child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.shield_outlined, color: gold, size: 44),
-                    const SizedBox(height: 12),
-                    Text('No saved armies yet.',
-                      style: GoogleFonts.cinzel(color: gold, fontSize: 17)),
-                  ],
-                ))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _armies.length,
-                  itemBuilder: (_, i) => _ArmyRowCard(
-                    l: _armies[i],
-                    onLoad: () => _loadArmyAndNavigate(_armies[i]),
+            if (_armies.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                child: Row(children: [
+                  SortBtn(
+                    sortBy:    _sortMode,
+                    ascending: _sortAsc,
+                    options: const [
+                      ['date',   'Date'],
+                      ['name',   'Name'],
+                      ['points', 'Points'],
+                    ],
+                    onSelected: (v) => setState(() {
+                      if (v == _sortMode) { _sortAsc = !_sortAsc; }
+                      else { _sortMode = v; _sortAsc = false; }
+                    })),
+                ])),
+            Expanded(child: Stack(children: [
+              _armies.isEmpty
+                ? Center(child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.shield_outlined, color: gold, size: 44),
+                      const SizedBox(height: 12),
+                      Text('No saved armies yet.',
+                        style: GoogleFonts.cinzel(color: gold, fontSize: 17)),
+                    ],
+                  ))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _sorted.length,
+                    itemBuilder: (_, i) => _ArmyRowCard(
+                      l: _sorted[i],
+                      onLoad: () => _loadArmyAndNavigate(_sorted[i]),
+                    ),
                   ),
-                )),
+              const Positioned(
+                top: 0, left: 0, right: 0, height: 36,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.dark, Colors.transparent]))))),
+              const Positioned(
+                bottom: 0, left: 0, right: 0, height: 36,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [AppColors.dark, Colors.transparent]))))),
+            ])),
           ]),
     );
   }

@@ -2,7 +2,7 @@
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/army_state.dart';
-import '../models/game_data.dart';
+import '../services/game_data_service.dart';
 import '../widgets/nav_btn.dart';
 import '../app_theme.dart';
 
@@ -28,20 +28,20 @@ class _RosterScreenState extends State<RosterScreen> {
     }
   }
 
-  List<GameUnit> get _filtered => builtinUnits.where((u) {
-    if (_factionFilter != 'all' && u.faction != _factionFilter) return false;
-    if (_typeFilter    != 'all' && u.type    != _typeFilter)    return false;
+  List<Map<String, dynamic>> get _filtered => GameDataService.units.where((u) {
+    if (_factionFilter != 'all' && u['faction_id'] != _factionFilter) return false;
+    if (_typeFilter    != 'all' && u['type']       != _typeFilter)    return false;
     return true;
   }).toList();
 
   Color _typeColor(String type) {
-    if (type == 'Infantry')  return const Color(0xFF4A90D0);
+    if (type == 'Infantry')  return const Color(0xFF3D78C0);
     if (type == 'Cavalry')   return const Color(0xFF5CAE68);
     if (type == 'Shooting')  return const Color(0xFFE05090);
     if (type == 'Artillery') return const Color(0xFFB83030);
     if (type == 'Hero')      return const Color(0xFFC9A84C);
     if (type == 'Monster')   return const Color(0xFF7B55C8);
-    if (type == 'Flyer')     return const Color(0xFF26C6DA);
+    if (type == 'Flyer')     return const Color(0xFF18D8EC);
     return grey;
   }
 
@@ -140,12 +140,14 @@ class _RosterScreenState extends State<RosterScreen> {
               child: Row(children: [
                 _chip('All', _factionFilter == 'all',
                   () => setState(() => _factionFilter = 'all')),
-                _chip('Uruk-Hai', _factionFilter == 'uruk',
-                  () => setState(() => _factionFilter = 'uruk'),
-                  color: const Color(0xFF8C4A4A)),
-                _chip('Gondor', _factionFilter == 'gondor',
-                  () => setState(() => _factionFilter = 'gondor'),
-                  color: const Color(0xFF4A6E9C)),
+                ...GameDataService.factions.map((f) {
+                  final fid    = f['id']    as String;
+                  final fname  = f['name']  as String;
+                  final fColor = AppColors.parseHex(f['color'] as String? ?? '#888888');
+                  return _chip(fname, _factionFilter == fid,
+                    () => setState(() => _factionFilter = fid),
+                    color: fColor);
+                }),
               ]),
             ),
             const SizedBox(height: 6),
@@ -175,33 +177,67 @@ class _RosterScreenState extends State<RosterScreen> {
 
         // Unit list
         Expanded(
-          child: _filtered.isEmpty
-            ? Center(child: Text('No units match this filter.',
-                style: GoogleFonts.cinzel(color: grey)))
-            : ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: _filtered.length,
-                itemBuilder: (_, i) => _unitCard(_filtered[i], army),
-              ),
+          child: Stack(children: [
+            _filtered.isEmpty
+              ? Center(child: Text('No units match this filter.',
+                  style: GoogleFonts.cinzel(color: grey)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: _filtered.length,
+                  itemBuilder: (_, i) => _unitCard(_filtered[i], army),
+                ),
+            const Positioned(
+              top: 0, left: 0, right: 0, height: 36,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [AppColors.dark, Colors.transparent]))))),
+            const Positioned(
+              bottom: 0, left: 0, right: 0, height: 36,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [AppColors.dark, Colors.transparent]))))),
+          ]),
         ),
       ]),
     );
   }
 
-  Widget _unitCard(GameUnit u, ArmyState army) {
-    final faction = builtinFactions.firstWhere(
-      (f) => f.id == u.faction,
-      orElse: () => const Faction('', '', 0xFF888888));
-    final typeColor   = _typeColor(u.type);
-    final alreadyAdded = army.units.any((x) => x.unit.id == u.id);
-    final isDisabled   = u.unique && alreadyAdded;
+  Widget _unitCard(Map<String, dynamic> u, ArmyState army) {
+    final uid       = u['id']          as String;
+    final uname     = u['name']        as String;
+    final utype     = u['type']        as String? ?? '';
+    final fid       = u['faction_id']  as String? ?? '';
+    final isUnique  = u['unique_unit'] as bool?   ?? false;
+    final cost      = (u['cost']    as num?)?.toInt() ?? 0;
+    final atk       = (u['atk']    as num?)?.toInt() ?? 0;
+    final def       = (u['def_val'] as num?)?.toInt() ?? 0;
+    final rng       = (u['rng']    as num?)?.toInt() ?? 0;
+    final mob       = (u['mob']    as num?)?.toInt() ?? 6;
+    final con       = (u['con_val'] as num?)?.toInt() ?? 3;
+    final cp        = (u['cp']     as num?)?.toInt() ?? 0;
+    final abilities = List<String>.from(u['abilities'] ?? []);
+
+    final fac      = GameDataService.factions.where((f) => f['id'] == fid).firstOrNull;
+    final facName  = fac?['name']  as String? ?? '';
+    final facColor = AppColors.parseHex(fac?['color'] as String? ?? '#888888');
+    final typeColor    = _typeColor(utype);
+    final alreadyAdded = army.units.any((x) => x.unit.id == uid);
+    final isDisabled   = isUnique && alreadyAdded;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: AppColors.dark,
         border: Border.all(
-          color: u.type == 'Hero'
+          color: utype == 'Hero'
             ? const Color(0xFFC8A0E0).withValues(alpha: 0.35)
             : gold.withValues(alpha: 0.18))),
       child: Padding(
@@ -213,21 +249,21 @@ class _RosterScreenState extends State<RosterScreen> {
             // Name + cost
             Row(children: [
               Expanded(
-                child: Text(u.name,
+                child: Text(uname,
                   style: GoogleFonts.cinzel(
                     color: AppColors.goldLight, fontSize: 14)),
               ),
-              Text('${u.cost} pts',
+              Text('$cost pts',
                 style: GoogleFonts.cinzel(color: gold, fontSize: 12)),
             ]),
             const SizedBox(height: 6),
 
             // Badges
             Row(children: [
-              _badge(u.type, typeColor),
+              _badge(utype, typeColor),
               const SizedBox(width: 6),
-              _badge(faction.name, Color(faction.color)),
-              if (u.unique) ...[
+              _badge(facName, facColor),
+              if (isUnique) ...[
                 const SizedBox(width: 6),
                 const Text('Unique',
                   style: TextStyle(
@@ -235,9 +271,9 @@ class _RosterScreenState extends State<RosterScreen> {
                     fontSize: 9,
                     fontStyle: FontStyle.italic)),
               ],
-              if (u.cp > 0) ...[
+              if (cp > 0) ...[
                 const SizedBox(width: 6),
-                _badge('${u.cp} CP', const Color(0xFFC8A0E0)),
+                _badge('$cp CP', const Color(0xFFC8A0E0)),
               ],
             ]),
             const SizedBox(height: 8),
@@ -247,20 +283,20 @@ class _RosterScreenState extends State<RosterScreen> {
               decoration: BoxDecoration(
                 border: Border.all(color: gold.withValues(alpha: 0.18))),
               child: Row(children: [
-                _statCell('ATK', u.atk, u.atk >= 5),
-                _statCell('DEF', u.def, u.def >= 5),
-                _statCell('SHO', u.rng, u.rng > 0),
-                _statCell('MOB', u.mob, u.mob >= 10),
-                _statCell('STR', u.con, false),
+                _statCell('ATK', atk, atk >= 5),
+                _statCell('DEF', def, def >= 5),
+                _statCell('SHO', rng, rng > 0),
+                _statCell('MOB', mob, mob >= 10),
+                _statCell('STR', con, false),
               ]),
             ),
             const SizedBox(height: 8),
 
             // Abilities inline
-            ...u.abilities.map((a) {
-              final ab = builtinAbilities
-                .where((x) => x.name == a)
-                .firstOrNull;
+            ...abilities.map((a) {
+              final ab   = GameDataService.abilities
+                .where((x) => x['name'] == a).firstOrNull;
+              final desc = ab?['description'] as String? ?? '';
               return Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: RichText(
@@ -269,7 +305,7 @@ class _RosterScreenState extends State<RosterScreen> {
                       style: GoogleFonts.cinzel(
                         color: const Color(0xFF7A6430),
                         fontSize: 10)),
-                    TextSpan(text: ab?.desc ?? '',
+                    TextSpan(text: desc,
                       style: const TextStyle(
                         color: grey,
                         fontSize: 12,
@@ -285,11 +321,13 @@ class _RosterScreenState extends State<RosterScreen> {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: isDisabled ? null : () {
-                  army.addUnit(u);
+                  final gu = GameDataService.gameUnitFromMap(u);
+                  if (gu == null) return;
+                  army.addUnit(gu);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       backgroundColor: AppColors.dark,
-                      content: Text('${u.name} added!',
+                      content: Text('$uname added!',
                         style: GoogleFonts.cinzel(color: gold)),
                       duration: const Duration(seconds: 1),
                     ),

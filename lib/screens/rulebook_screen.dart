@@ -370,7 +370,9 @@ class _RulebookScreenState extends State<RulebookScreen> {
                 Expanded(child: _pdfViewer()),
               ])
             : Column(children: [
-                _sidebarHeader(),
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(width: wide ? 220.0 : 200.0, child: _sidebarHeader())),
                 Container(height: 1, color: gold.withValues(alpha: 0.15)),
                 Expanded(child: _pdfViewer()),
               ])),
@@ -387,13 +389,16 @@ class _RulebookScreenState extends State<RulebookScreen> {
               NavBtn(
                 icon: Icons.chevron_left,
                 onPressed: _page > 1 ? () => _goPage(_page - 1) : null),
-              Column(mainAxisSize: MainAxisSize.min, children: [
-                Text('$_page / $_total', textAlign: TextAlign.center,
-                  style: GoogleFonts.cinzel(color: gold, fontSize: 13)),
-                if (_currentChapter.isNotEmpty)
-                  Text(_currentChapter, textAlign: TextAlign.center,
-                    style: GoogleFonts.cinzel(color: grey, fontSize: 11)),
-              ]),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 140),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('$_page / $_total', textAlign: TextAlign.center,
+                    style: GoogleFonts.cinzel(color: gold, fontSize: 13)),
+                  if (_currentChapter.isNotEmpty)
+                    Text(_currentChapter, textAlign: TextAlign.center,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.cinzel(color: grey, fontSize: 11)),
+                ])),
               NavBtn(
                 icon: Icons.chevron_right,
                 onPressed: _page < _total ? () => _goPage(_page + 1) : null),
@@ -464,8 +469,12 @@ class _RulebookScreenState extends State<RulebookScreen> {
       color: AppColors.dark,
       border: Border(bottom: BorderSide(color: gold.withValues(alpha: 0.2)))),
     child: Row(children: [
-      Expanded(child: Text('CHAPTERS', style: GoogleFonts.cinzel(
-        color: gold.withValues(alpha: 0.6), fontSize: 11, letterSpacing: 2))),
+      Expanded(child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => setState(() => _showSidebar = !_showSidebar),
+          child: Text('CHAPTERS', style: GoogleFonts.cinzel(
+            color: gold, fontSize: 11, letterSpacing: 2))))),
       NavBtn(
         icon: _showSidebar ? Icons.chevron_left : Icons.chevron_right,
         onPressed: () => setState(() => _showSidebar = !_showSidebar)),
@@ -538,6 +547,24 @@ class _RulebookScreenState extends State<RulebookScreen> {
               _clampPan();
             }),
             child: const SizedBox.expand())),
+        const Positioned(
+          top: 0, left: 0, right: 0, height: 36,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [AppColors.dark, Colors.transparent]))))),
+        const Positioned(
+          bottom: 0, left: 0, right: 0, height: 36,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [AppColors.dark, Colors.transparent]))))),
       ]));
   });
 

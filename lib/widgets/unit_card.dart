@@ -203,13 +203,13 @@ Widget typeIconWidget(String type, {double size = 24, Color? color}) {
 
 Color typeColor(String type) {
   switch (type.toLowerCase()) {
-    case 'infantry':  return const Color(0xFF4A90D0);
+    case 'infantry':  return const Color(0xFF3D78C0);
     case 'cavalry':   return const Color(0xFF5CAE68);
     case 'shooting':  return const Color(0xFFE05090);
     case 'artillery': return const Color(0xFFB83030);
     case 'hero':      return const Color(0xFFC9A84C);
     case 'monster':   return const Color(0xFF7B55C8);
-    case 'flyer':     return const Color(0xFF26C6DA);
+    case 'flyer':     return const Color(0xFF18D8EC);
     default:          return AppColors.grey;
   }
 }

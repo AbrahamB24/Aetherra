@@ -7,6 +7,7 @@ import '../models/game_data.dart';
 import '../services/bg_remover.dart';
 import '../services/cost_config.dart';
 import '../services/game_data_service.dart';
+import '../widgets/crud_btns.dart';
 import '../widgets/nav_btn.dart';
 import '../widgets/photo_crop_dialog.dart';
 import '../widgets/filter_widgets.dart';
@@ -253,8 +254,8 @@ class _DevScreenState extends State<DevScreen>
           child: Align(alignment: Alignment.centerLeft,
             child: Text('${all.length} units',
               style: GoogleFonts.cinzel(color: grey, fontSize: 13, letterSpacing: 1.2)))),
-        Expanded(
-          child: all.isEmpty
+        Expanded(child: Stack(children: [
+          all.isEmpty
             ? Center(child: Text('No units match.',
                 style: GoogleFonts.cinzel(color: grey)))
             : LayoutBuilder(builder: (ctx, bc) {
@@ -276,20 +277,41 @@ class _DevScreenState extends State<DevScreen>
                         ],
                       ]);
                   });
-              })),
+              }),
+          const Positioned(
+            top: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+          const Positioned(
+            bottom: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+        ])),
       ])),
       Positioned(bottom: 14, left: 0, right: 0,
-        child: _CreateBtn(icon: Icons.add, label: 'New Unit',
+        child: CrudCreateBtn(icon: Icons.add, label: 'New Unit',
           onTap: () => _openUnitForm(null))),
     ]);
   }
 
-  Widget _filterBar() => Column(children: [
+  Widget _filterBar() => LayoutBuilder(builder: (_, bc) {
+    final c = bc.maxWidth < 430;
+    return Column(children: [
     SizedBox(height: 44, child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
         FilterBtn(
-          allLabel: 'All Factions',
+          allLabel: c ? 'Fac' : 'Factions',
           options: _allFacs.map((f) => MapEntry(
             f['id'] as String, f['name'] as String)).toList(),
           dotColors: { for (final f in _allFacs)
@@ -298,7 +320,7 @@ class _DevScreenState extends State<DevScreen>
           onChanged: (s) => setState(() { _unitFacF.clear(); _unitFacF.addAll(s); })),
         const SizedBox(width: 8),
         FilterBtn(
-          allLabel: 'All Types',
+          allLabel: c ? 'Typ' : 'Types',
           options: const [
             MapEntry('Infantry','Infantry'), MapEntry('Cavalry','Cavalry'),
             MapEntry('Shooting','Shooting'), MapEntry('Artillery','Artillery'),
@@ -351,6 +373,7 @@ class _DevScreenState extends State<DevScreen>
           contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
           onChanged: (v) => setState(() => _unitSearch = v)))),
   ]);
+  });
 
   Widget _unitRow(Map<String, dynamic> u) {
     return Padding(
@@ -358,11 +381,11 @@ class _DevScreenState extends State<DevScreen>
       child: RosterCard(
         unitData: u,
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          _UnitActionBtn(
+          CrudActionBtn(
             icon: Icons.copy_outlined,
             color: grey.withValues(alpha: 0.55),
             onTap: () => _openUnitForm(u, isDuplicate: true)),
-          _UnitActionBtn(
+          CrudActionBtn(
             icon: Icons.edit_outlined,
             color: gold.withValues(alpha: 0.75),
             onTap: () => _openUnitForm(u)),
@@ -453,16 +476,36 @@ class _DevScreenState extends State<DevScreen>
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               onChanged: (v) => setState(() => _facSearch = v)))),
-        filtered.isEmpty
-          ? Expanded(child: Center(child: Text('No factions.',
-              style: GoogleFonts.cinzel(color: grey.withValues(alpha: 0.5), fontSize: 14))))
-          : Expanded(child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 68),
-              itemCount: filtered.length,
-              itemBuilder: (_, i) => _facRow(filtered[i]))),
+        Expanded(child: Stack(children: [
+          filtered.isEmpty
+            ? Center(child: Text('No factions.',
+                style: GoogleFonts.cinzel(color: grey.withValues(alpha: 0.5), fontSize: 14)))
+            : ListView.builder(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 68),
+                itemCount: filtered.length,
+                itemBuilder: (_, i) => _facRow(filtered[i])),
+          const Positioned(
+            top: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+          const Positioned(
+            bottom: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+        ])),
       ])),
       Positioned(bottom: 14, left: 0, right: 0,
-        child: _CreateBtn(icon: Icons.add, label: 'New Faction',
+        child: CrudCreateBtn(icon: Icons.add, label: 'New Faction',
           onTap: _openFactionForm)),
     ]);
   }
@@ -502,7 +545,7 @@ class _DevScreenState extends State<DevScreen>
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
             FilterBtn(
-              allLabel: 'All Types',
+              allLabel: 'Types',
               options: const [
                 MapEntry('Infantry','Infantry'), MapEntry('Cavalry','Cavalry'),
                 MapEntry('Shooting','Shooting'), MapEntry('Artillery','Artillery'),
@@ -540,13 +583,33 @@ class _DevScreenState extends State<DevScreen>
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               onChanged: (v) => setState(() => _abSearch = v)))),
-        Expanded(child: ListView.builder(
-          padding: const EdgeInsets.fromLTRB(12,0,12,68),
-          itemCount: all.length,
-          itemBuilder: (_, i) => _abilityRow(all[i]))),
+        Expanded(child: Stack(children: [
+          ListView.builder(
+            padding: const EdgeInsets.fromLTRB(12,0,12,68),
+            itemCount: all.length,
+            itemBuilder: (_, i) => _abilityRow(all[i])),
+          const Positioned(
+            top: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+          const Positioned(
+            bottom: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+        ])),
       ])),
       Positioned(bottom: 14, left: 0, right: 0,
-        child: _CreateBtn(icon: Icons.add, label: 'New Ability',
+        child: CrudCreateBtn(icon: Icons.add, label: 'New Ability',
           onTap: () => _openAbilityForm(null))),
     ]);
   }
@@ -561,15 +624,15 @@ class _DevScreenState extends State<DevScreen>
       child: AbilityCard(
         abilityData: a,
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          _UnitActionBtn(
+          CrudActionBtn(
             icon: Icons.copy_outlined,
             color: grey.withValues(alpha: 0.55),
             onTap: () => _openAbilityForm(a, isDuplicate: true)),
-          _UnitActionBtn(
+          CrudActionBtn(
             icon: Icons.edit_outlined,
             color: gold.withValues(alpha: 0.75),
             onTap: () => _openAbilityForm(a)),
-          _UnitActionBtn(
+          CrudActionBtn(
             icon: Icons.delete_outline,
             color: Colors.red.shade300.withValues(alpha: 0.8),
             onTap: () => _deleteAbility(name, wasBuiltin: nameIsBuiltin)),
@@ -642,8 +705,7 @@ class _DevScreenState extends State<DevScreen>
         _balTable('ATK — Attack (0–10)',          CostConfig.atk),
         _balTable('DEF — Defense (0–10)',          CostConfig.def),
         _balTable('SHO — Shooting (0–10)',           CostConfig.rng),
-        _balTable('MOB Infantry (0–8)',            CostConfig.mobI),
-        _balTable('MOB Cavalry (0–20)',            CostConfig.mobC),
+        _balTable('MOB — Mobility (0–20)',         CostConfig.mob),
         _balTable('CON Multiplier (0–10)',         CostConfig.con),
         _balTable('CP — Command Points (0–10)',    CostConfig.cp),
 
@@ -998,7 +1060,8 @@ class _DevScreenState extends State<DevScreen>
                   final Color c  = abCost < 0
                       ? const Color(0xFFCF6679)
                       : abCpCost > 0 ? gold : grey;
-                  return GestureDetector(
+                  final desc = ab?['description'] as String? ?? '';
+                  final chip = GestureDetector(
                     onTap: () => setS(() {
                       if (on) { selAbs.remove(n); } else { selAbs.add(n); }
                     }),
@@ -1009,6 +1072,16 @@ class _DevScreenState extends State<DevScreen>
                         border: Border.all(color: on ? c : c.withValues(alpha: 0.35))),
                       child: Text(n, style: GoogleFonts.cinzel(
                         fontSize: 13, color: on ? c : c.withValues(alpha: 0.6)))));
+                  return desc.isEmpty ? chip : Tooltip(
+                    message: desc,
+                    waitDuration: const Duration(milliseconds: 500),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1A14),
+                      border: Border.all(color: gold.withValues(alpha: 0.35))),
+                    textStyle: GoogleFonts.cinzel(
+                      color: grey, fontSize: 12, height: 1.5),
+                    preferBelow: false,
+                    child: chip);
                 }).toList()),
               const SizedBox(height: 14),
               RosterCard(
@@ -1989,65 +2062,6 @@ class _DevFacOverlayState extends State<_DevFacOverlay> {
         duration: const Duration(milliseconds: 80),
         opacity: _hovered ? 1.0 : 0.45,
         child: Icon(widget.icon, color: widget.color, size: 14))));
-}
-
-// ── Custom hover-aware tab button ─────────────────────────────────────────────
-class _UnitActionBtn extends StatefulWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  const _UnitActionBtn({required this.icon, required this.color, required this.onTap});
-  @override State<_UnitActionBtn> createState() => _UnitActionBtnState();
-}
-class _UnitActionBtnState extends State<_UnitActionBtn> {
-  bool _hovered = false;
-  @override Widget build(BuildContext context) => MouseRegion(
-    onEnter: (_) => setState(() => _hovered = true),
-    onExit:  (_) => setState(() => _hovered = false),
-    cursor: SystemMouseCursors.click,
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Icon(widget.icon,
-          color: widget.color.withValues(alpha: _hovered ? 1.0 : widget.color.a),
-          size: 17))));
-}
-
-class _CreateBtn extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _CreateBtn({required this.icon, required this.label, required this.onTap});
-  @override State<_CreateBtn> createState() => _CreateBtnState();
-}
-class _CreateBtnState extends State<_CreateBtn> {
-  bool _hovered = false;
-  bool _pressed = false;
-  @override Widget build(BuildContext context) => Center(
-    child: MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTapDown:   (_) => setState(() => _pressed = true),
-        onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
-        onTapCancel: ()  => setState(() => _pressed = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
-          decoration: BoxDecoration(
-            color: _pressed
-                ? AppColors.gold.withValues(alpha: 0.75)
-                : _hovered
-                    ? AppColors.gold.withValues(alpha: 0.88)
-                    : AppColors.gold,
-            boxShadow: const [
-              BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
-            ]),
-          child: Text(widget.label, style: GoogleFonts.cinzel(
-            color: AppColors.dark, fontSize: 13, letterSpacing: 1.1,
-            fontWeight: FontWeight.w600))))));
 }
 
 class _DevTabBtn extends StatefulWidget {

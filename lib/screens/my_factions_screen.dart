@@ -9,6 +9,7 @@ import '../services/bg_remover.dart';
 import '../services/cost_config.dart';
 import '../services/game_data_service.dart';
 import '../services/subscription_service.dart';
+import '../widgets/crud_btns.dart';
 import '../widgets/nav_btn.dart';
 import '../widgets/photo_crop_dialog.dart';
 import '../widgets/filter_widgets.dart';
@@ -84,10 +85,13 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
   String _facSearch      = '';
   String _facSort        = 'name';
   bool   _facSortAsc     = true;
+  final Set<String> _facSourceF = {};
   bool   _facSearchOpen  = false;
-  final Set<String> _unitFacF  = {};
-  final Set<String> _unitTypeF = {};
-  final Set<String> _abTypeF   = {};
+  final Set<String> _unitFacF    = {};
+  final Set<String> _unitTypeF   = {};
+  final Set<String> _unitSourceF = {};
+  final Set<String> _abTypeF    = {};
+  final Set<String> _abSourceF  = {};
   final _unitSearchCtrl  = TextEditingController();
   final _unitSearchFocus = FocusNode();
   final _abSearchCtrl    = TextEditingController();
@@ -316,8 +320,17 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
         .map((f) => {...f, '_isOfficial': true})
         .toList();
     var filtered = [..._userFacs, ...officialFacs].where((f) {
-      if (_facSearch.isEmpty) return true;
-      return (f['name'] as String).toLowerCase().contains(_facSearch.toLowerCase());
+      if (_facSearch.isNotEmpty &&
+          !(f['name'] as String).toLowerCase().contains(_facSearch.toLowerCase())) {
+        return false;
+      }
+      if (_facSourceF.isNotEmpty) {
+        final isOfficial = f['_isOfficial'] as bool? ?? false;
+        final matchOwn      = _facSourceF.contains('own') && !isOfficial;
+        final matchOfficial = _facSourceF.contains('official') && isOfficial;
+        if (!matchOwn && !matchOfficial) return false;
+      }
+      return true;
     }).toList();
 
     filtered.sort((a, b) {
@@ -344,6 +357,14 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
         SizedBox(height: 44, child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            FilterBtn(
+              allLabel: 'Sources',
+              options: const [
+                MapEntry('own',      'Own'),
+                MapEntry('official', 'Official'),
+              ],
+              selected: _facSourceF,
+              onChanged: (s) => setState(() { _facSourceF.clear(); _facSourceF.addAll(s); })),
             const Spacer(),
             SortBtn(
               sortBy: _facSort,
@@ -387,15 +408,35 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               onChanged: (v) => setState(() => _facSearch = v)))),
-        filtered.isEmpty
-            ? Expanded(child: _empty('No factions match.'))
-            : Expanded(child: ListView.builder(
+        Expanded(child: Stack(children: [
+          filtered.isEmpty
+            ? _empty('No factions match.')
+            : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(10, 4, 10, 68),
                 itemCount: filtered.length,
-                itemBuilder: (_, i) => _facRow(filtered[i]))),
+                itemBuilder: (_, i) => _facRow(filtered[i])),
+          const Positioned(
+            top: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+          const Positioned(
+            bottom: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+        ])),
       ])),
       Positioned(bottom: 14, left: 0, right: 0,
-        child: _CreateBtn(icon: Icons.add, label: 'New Faction',
+        child: CrudCreateBtn(icon: Icons.add, label: 'New Faction',
           onTap: _openFactionForm)),
     ]);
   }
@@ -443,6 +484,14 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               .contains(_unitSearch.toLowerCase())) {
         return false;
       }
+      if (_unitSourceF.isNotEmpty) {
+        final isOfficial = u['_isOfficial'] as bool? ?? false;
+        final facId = u['faction_id'] as String?;
+        final matchNoFac  = _unitSourceF.contains('no_faction') && (facId == null || facId.isEmpty);
+        final matchOwn    = _unitSourceF.contains('own') && !isOfficial;
+        final matchOfficial = _unitSourceF.contains('official') && isOfficial;
+        if (!matchNoFac && !matchOwn && !matchOfficial) return false;
+      }
       return true;
     }).toList();
 
@@ -467,9 +516,10 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
           child: Align(alignment: Alignment.centerLeft,
             child: Text('${filtered.length} unit${filtered.length != 1 ? 's' : ''}',
               style: GoogleFonts.cinzel(color: grey, fontSize: 13, letterSpacing: 1.2)))),
-        filtered.isEmpty
-            ? Expanded(child: _empty('No units match.'))
-            : Expanded(child: LayoutBuilder(builder: (ctx, bc) {
+        Expanded(child: Stack(children: [
+          filtered.isEmpty
+            ? _empty('No units match.')
+            : LayoutBuilder(builder: (ctx, bc) {
                 final avail = bc.maxWidth - 20;
                 final cols  = avail < 600 ? 1 : avail < 950 ? 2 : 3;
                 final cardW = ((avail - (cols - 1) * 8) / cols).floorToDouble().clamp(260.0, 600.0);
@@ -488,29 +538,60 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                         ],
                       ]);
                   });
-              })),
+              }),
+          const Positioned(
+            top: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+          const Positioned(
+            bottom: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+        ])),
       ])),
       Positioned(bottom: 14, left: 0, right: 0,
-        child: _CreateBtn(icon: Icons.add, label: 'New Unit',
+        child: CrudCreateBtn(icon: Icons.add, label: 'New Unit',
           onTap: () => _openUnitForm(null))),
     ]);
   }
 
-  Widget _unitFilterBar() => Column(children: [
+  Widget _unitFilterBar() => LayoutBuilder(builder: (_, bc) {
+    final c = bc.maxWidth < 430;
+    return Column(children: [
     SizedBox(height: 44, child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
         FilterBtn(
-          allLabel: 'All Factions',
+          allLabel: c ? 'Src' : 'Sources',
+          options: const [
+            MapEntry('no_faction', 'No Faction'),
+            MapEntry('own',        'Own'),
+            MapEntry('official',   'Official'),
+          ],
+          selected: _unitSourceF,
+          onChanged: (s) => setState(() { _unitSourceF.clear(); _unitSourceF.addAll(s); })),
+        const SizedBox(width: 6),
+        FilterBtn(
+          allLabel: c ? 'Fac' : 'Factions',
           options: _allFacs.map((f) =>
             MapEntry(f['id'] as String, f['name'] as String)).toList(),
           dotColors: {for (final f in _allFacs)
             f['id'] as String: AppColors.parseHex(f['color'] as String? ?? '#888888')},
           selected: _unitFacF,
           onChanged: (s) => setState(() { _unitFacF.clear(); _unitFacF.addAll(s); })),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         FilterBtn(
-          allLabel: 'All Types',
+          allLabel: c ? 'Typ' : 'Types',
           options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
             .map((t) => MapEntry(t, t)).toList(),
           selected: _unitTypeF,
@@ -559,6 +640,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
           contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
           onChanged: (v) => setState(() => _unitSearch = v)))),
   ]);
+  });
 
   Widget _unitRow(Map<String, dynamic> u) {
     final isOfficial = u['_isOfficial'] == true;
@@ -567,7 +649,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
       child: RosterCard(
         unitData: u,
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          _UnitActionBtn(
+          CrudActionBtn(
             icon: Icons.copy_outlined,
             color: grey.withValues(alpha: 0.55),
             onTap: () => _openUnitForm(u, isDuplicate: true)),
@@ -577,7 +659,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               child: Icon(Icons.lock_outline,
                 color: grey.withValues(alpha: 0.4), size: 17))
           else
-            _UnitActionBtn(
+            CrudActionBtn(
               icon: Icons.edit_outlined,
               color: gold.withValues(alpha: 0.75),
               onTap: () => _openUnitForm(u)),
@@ -603,16 +685,32 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
         final types = a['types'] as List;
         if (types.isNotEmpty && !types.any((t) => _abTypeF.contains(t as String))) return false;
       }
+      if (_abSourceF.isNotEmpty) {
+        final isOfficial = a['_isOfficial'] as bool? ?? false;
+        final matchOwn      = _abSourceF.contains('own') && !isOfficial;
+        final matchOfficial = _abSourceF.contains('official') && isOfficial;
+        if (!matchOwn && !matchOfficial) return false;
+      }
       return true;
     }).toList();
 
     return Stack(children: [
       Positioned.fill(child: Column(children: [
+        LayoutBuilder(builder: (_, bc) { final c = bc.maxWidth < 430; return
         SizedBox(height: 44, child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
             FilterBtn(
-              allLabel: 'All Types',
+              allLabel: c ? 'Src' : 'Sources',
+              options: const [
+                MapEntry('own',      'Own'),
+                MapEntry('official', 'Official'),
+              ],
+              selected: _abSourceF,
+              onChanged: (s) => setState(() { _abSourceF.clear(); _abSourceF.addAll(s); })),
+            const SizedBox(width: 6),
+            FilterBtn(
+              allLabel: c ? 'Typ' : 'Types',
               options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
                 .map((t) => MapEntry(t, t)).toList(),
               selected: _abTypeF,
@@ -631,7 +729,8 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                 });
                 if (_abSearchOpen) _abSearchFocus.requestFocus();
               }),
-          ]))),
+          ])));
+        }),
         AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           height: _abSearchOpen ? 46 : 0,
@@ -647,15 +746,35 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               onChanged: (v) => setState(() => _abSearch = v)))),
-        filtered.isEmpty
-            ? Expanded(child: _empty('No abilities match.'))
-            : Expanded(child: ListView.builder(
+        Expanded(child: Stack(children: [
+          filtered.isEmpty
+            ? _empty('No abilities match.')
+            : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(10, 0, 10, 68),
                 itemCount: filtered.length,
-                itemBuilder: (_, i) => _abilityRow(filtered[i]))),
+                itemBuilder: (_, i) => _abilityRow(filtered[i])),
+          const Positioned(
+            top: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+          const Positioned(
+            bottom: 0, left: 0, right: 0, height: 36,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [AppColors.dark, Colors.transparent]))))),
+        ])),
       ])),
       Positioned(bottom: 14, left: 0, right: 0,
-        child: _CreateBtn(icon: Icons.add, label: 'New Ability',
+        child: CrudCreateBtn(icon: Icons.add, label: 'New Ability',
           onTap: () => _openAbilityForm(null))),
     ]);
   }
@@ -667,7 +786,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
       child: AbilityCard(
         abilityData: a,
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          _UnitActionBtn(
+          CrudActionBtn(
             icon: Icons.copy_outlined,
             color: grey.withValues(alpha: 0.55),
             onTap: () => _openAbilityForm(a, isDuplicate: true)),
@@ -677,7 +796,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               child: Icon(Icons.lock_outline,
                 color: grey.withValues(alpha: 0.4), size: 17))
           else
-            _UnitActionBtn(
+            CrudActionBtn(
               icon: Icons.edit_outlined,
               color: gold.withValues(alpha: 0.75),
               onTap: () => _openAbilityForm(a)),
@@ -1348,7 +1467,8 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                   final Color c  = abCost < 0
                       ? const Color(0xFFCF6679)
                       : abCpCost > 0 ? gold : grey;
-                  return GestureDetector(
+                  final desc = ab?['description'] as String? ?? '';
+                  final chip = GestureDetector(
                     onTap: () => setS(() {
                       if (on) { selAbs.remove(n); } else { selAbs.add(n); }
                     }),
@@ -1359,6 +1479,16 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                         border: Border.all(color: on ? c : c.withValues(alpha: 0.35))),
                       child: Text(n, style: GoogleFonts.cinzel(
                         fontSize: 13, color: on ? c : c.withValues(alpha: 0.6)))));
+                  return desc.isEmpty ? chip : Tooltip(
+                    message: desc,
+                    waitDuration: const Duration(milliseconds: 500),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1A14),
+                      border: Border.all(color: gold.withValues(alpha: 0.35))),
+                    textStyle: GoogleFonts.cinzel(
+                      color: grey, fontSize: 12, height: 1.5),
+                    preferBelow: false,
+                    child: chip);
                 }).toList()),
               const SizedBox(height: 14),
               RosterCard(
@@ -2070,65 +2200,6 @@ class _FacRowCardState extends State<_FacRowCard> {
         ]),
       ]));
   }
-}
-
-
-class _UnitActionBtn extends StatefulWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  const _UnitActionBtn({required this.icon, required this.color, required this.onTap});
-  @override State<_UnitActionBtn> createState() => _UnitActionBtnState();
-}
-class _UnitActionBtnState extends State<_UnitActionBtn> {
-  bool _hovered = false;
-  @override Widget build(BuildContext context) => MouseRegion(
-    onEnter: (_) => setState(() => _hovered = true),
-    onExit:  (_) => setState(() => _hovered = false),
-    cursor: SystemMouseCursors.click,
-    child: GestureDetector(
-      onTap: widget.onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Icon(widget.icon,
-          color: widget.color.withValues(alpha: _hovered ? 1.0 : widget.color.a),
-          size: 17))));
-}
-
-class _CreateBtn extends StatefulWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _CreateBtn({required this.icon, required this.label, required this.onTap});
-  @override State<_CreateBtn> createState() => _CreateBtnState();
-}
-class _CreateBtnState extends State<_CreateBtn> {
-  bool _hovered = false;
-  bool _pressed = false;
-  @override Widget build(BuildContext context) => Center(
-    child: MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit:  (_) => setState(() => _hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTapDown:   (_) => setState(() => _pressed = true),
-        onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
-        onTapCancel: ()  => setState(() => _pressed = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 28),
-          decoration: BoxDecoration(
-            color: _pressed
-                ? AppColors.gold.withValues(alpha: 0.75)
-                : _hovered
-                    ? AppColors.gold.withValues(alpha: 0.88)
-                    : AppColors.gold,
-            boxShadow: const [
-              BoxShadow(color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
-            ]),
-          child: Text(widget.label, style: GoogleFonts.cinzel(
-            color: AppColors.dark, fontSize: 13, letterSpacing: 1.1,
-            fontWeight: FontWeight.w600))))));
 }
 
 class _HoverTab extends StatefulWidget {

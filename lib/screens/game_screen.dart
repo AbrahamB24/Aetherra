@@ -1,7 +1,7 @@
 ﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import '../services/bg_remover.dart';
 import '../widgets/photo_crop_dialog.dart';
@@ -191,8 +191,8 @@ class GameScreen extends StatelessWidget {
               child: _TokenBagWidget(game: game, gs: gs,
                 playerCol: playerCol, enemyCol: enemyCol)),
 
-          // ── ARMY BANNER ──────────────────────────────────────────
-          _GameBanner(gs: gs, game: game),
+          // ── ARMY BANNER (hides on scroll) ────────────────────────
+          _ScrollHiddenBanner(gs: gs, game: game),
 
           // ── HEADER BAR ───────────────────────────────────────────
           SizedBox(height: 70,
@@ -260,34 +260,57 @@ class GameScreen extends StatelessWidget {
                         ]))));
                 }, color: gold),
                 const SizedBox(height: 4),
+                _actionBtn('End Game', Icons.flag_outlined, () =>
+                  _showEndGameSummary(ctx, game),
+                  color: AppColors.grey),
 
                 ])),
               ]))),
 
           // ── UNIT LIST ────────────────────────────────────────────
-          Expanded(child: Listener(
-            onPointerMove:   (e) { if (_GameDndOuterState._dragging != null) _GameDndOuterState._updateScroll(e.position.dy); },
-            onPointerUp:     (_) => _GameDndOuterState._stopScroll(),
-            onPointerCancel: (_) => _GameDndOuterState._stopScroll(),
-            child: ListView.builder(
-              controller: _GameDndOuterState._scrollCtrl,
-              padding: const EdgeInsets.all(10),
-            itemCount: groups.length,
-            itemBuilder: (_, gi) {
-              final entry     = groups[gi];
-              final groupName = entry.key;
-              final units     = entry.value;
-              final isElimGrp = groupName == '__eliminated__';
-              return _GameGroupSection(
-                key: ValueKey(groupName),
-                groupName: groupName,
-                units: units,
-                isElimGrp: isElimGrp,
-                game: game,
-                playerCol: playerCol,
-                topMargin: gi > 0 ? 12.0 : 0.0,
-              );
-            }))),
+          Expanded(child: Stack(children: [
+            Listener(
+              onPointerMove:   (e) { if (_GameDndOuterState._dragging != null) _GameDndOuterState._updateScroll(e.position.dy); },
+              onPointerUp:     (_) => _GameDndOuterState._stopScroll(),
+              onPointerCancel: (_) => _GameDndOuterState._stopScroll(),
+              child: ListView.builder(
+                controller: _GameDndOuterState._scrollCtrl,
+                padding: const EdgeInsets.all(10),
+              itemCount: groups.length,
+              itemBuilder: (_, gi) {
+                final entry     = groups[gi];
+                final groupName = entry.key;
+                final units     = entry.value;
+                final isElimGrp = groupName == '__eliminated__';
+                return _GameGroupSection(
+                  key: ValueKey(groupName),
+                  groupName: groupName,
+                  units: units,
+                  isElimGrp: isElimGrp,
+                  game: game,
+                  playerCol: playerCol,
+                  topMargin: gi > 0 ? 12.0 : 0.0,
+                );
+              })),
+            const Positioned(
+              top: 0, left: 0, right: 0, height: 36,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [AppColors.dark, Colors.transparent]))))),
+            const Positioned(
+              bottom: 0, left: 0, right: 0, height: 36,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [AppColors.dark, Colors.transparent]))))),
+          ])),
           ])),
           );  // Scaffold
     });
@@ -313,6 +336,62 @@ class GameScreen extends StatelessWidget {
   Widget _actionBtn(String label, IconData icon, VoidCallback onTap,
       {Color color = AppColors.grey}) =>
     _ActionBtn(label: label, icon: icon, onTap: onTap, color: color);
+
+  static Future<void> _showEndGameSummary(BuildContext ctx, GameNotifier game) async {
+    final gs = game.state!;
+    await showModalBottomSheet(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: AppColors.dark,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.85,
+        builder: (_, scroll) => Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16,
+            MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Center(child: Container(width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: grey.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 14),
+            Text('Game Summary',
+              style: GoogleFonts.cinzel(color: gold, fontSize: 17)),
+            const SizedBox(height: 16),
+            Expanded(child: SingleChildScrollView(
+              controller: scroll,
+              child: _EndGameContent(gs: gs))),
+            const SizedBox(height: 24),
+            Row(children: [
+              Expanded(child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: grey,
+                  side: BorderSide(color: grey.withValues(alpha: 0.4)),
+                  shape: const RoundedRectangleBorder(),
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+                child: Text('Continue',
+                  style: GoogleFonts.cinzel(fontSize: 14)))),
+              const SizedBox(width: 12),
+              Expanded(child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await game.flushAutoSave();
+                  _GameGroupSectionState.clearState();
+                  game.endGame();
+                  if (ctx.mounted) Navigator.of(ctx).popUntil((r) => r.isFirst);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: gold,
+                  foregroundColor: AppColors.dark,
+                  shape: const RoundedRectangleBorder(),
+                  padding: const EdgeInsets.symmetric(vertical: 14)),
+                child: Text('End Game',
+                  style: GoogleFonts.cinzel(
+                    fontSize: 14, fontWeight: FontWeight.w600)))),
+            ]),
+          ]))));
+  }
 }
 
 // ── TOKEN BAG WIDGET ─────────────────────────────────────────────────
@@ -890,7 +969,9 @@ class _GameDndTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final draggable = kIsWeb
+    final isTouch = defaultTargetPlatform == TargetPlatform.android ||
+                    defaultTargetPlatform == TargetPlatform.iOS;
+    final draggable = !isTouch
       ? (Widget child) => Draggable<GameUnit>(
           data: unit,
           onDragStarted: () => _GameDndOuterState.startDrag(unit),
@@ -1067,8 +1148,14 @@ void showGameEditDialog(BuildContext context, GameUnit unit, GameNotifier game) 
                     } else {
                       setSt(() => removingBg = false);
                     }
-                  } catch (_) {
+                  } catch (e) {
                     setSt(() => removingBg = false);
+                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                      backgroundColor: AppColors.dark,
+                      content: Text('Background removal failed: $e',
+                        style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
+                      duration: const Duration(seconds: 4),
+                    ));
                   }
                 },
                 icon: const Icon(Icons.auto_fix_high_outlined, color: gold, size: 15),
@@ -1843,6 +1930,53 @@ class _BagBtnState extends State<_BagBtn> {
   }
 }
 
+// ── Banner wrapper — hides on scroll down, shows on scroll up ────────────────
+class _ScrollHiddenBanner extends StatefulWidget {
+  final GameState gs;
+  final GameNotifier game;
+  const _ScrollHiddenBanner({required this.gs, required this.game});
+  @override State<_ScrollHiddenBanner> createState() => _ScrollHiddenBannerState();
+}
+class _ScrollHiddenBannerState extends State<_ScrollHiddenBanner> {
+  bool _visible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Add listener after first frame — scroll controller is attached by then
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _GameDndOuterState._scrollCtrl.addListener(_onScroll);
+    });
+  }
+
+  @override
+  void dispose() {
+    _GameDndOuterState._scrollCtrl.removeListener(_onScroll);
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_GameDndOuterState._scrollCtrl.hasClients) return;
+    final show = _GameDndOuterState._scrollCtrl.offset < 40;
+    if (show != _visible) setState(() => _visible = show);
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedOpacity(
+    duration: const Duration(milliseconds: 220),
+    opacity: _visible ? 1.0 : 0.0,
+    child: ClipRect(
+      child: AnimatedAlign(
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeInOut,
+        alignment: Alignment.bottomCenter,
+        heightFactor: _visible ? 1.0 : 0.0,
+        child: _GameBanner(gs: widget.gs, game: widget.game),
+      ),
+    ),
+  );
+}
+
 // ── Army Banner ──────────────────────────────────────────────────────────────
 class _GameBanner extends StatefulWidget {
   final GameState gs;
@@ -2348,4 +2482,110 @@ class _GamePhotoIconState extends State<_GamePhotoIcon> {
         duration: const Duration(milliseconds: 80),
         opacity: _hovered ? 1.0 : 0.45,
         child: Icon(widget.icon, color: widget.color, size: 20))));
+}
+
+// ── End-game summary content ──────────────────────────────────────────────
+class _EndGameContent extends StatelessWidget {
+  final GameState gs;
+  const _EndGameContent({required this.gs});
+
+  @override
+  Widget build(BuildContext context) {
+    final eliminated = gs.units.where((u) => u.isEliminated).toList();
+    final alive      = gs.units.where((u) => !u.isEliminated).toList();
+    final totalSTR   = gs.units.fold(0, (s, u) => s + u.armyUnit.unit.con);
+    final lostSTR    = gs.units.fold(0, (s, u) => s + (u.armyUnit.unit.con - u.currentCon));
+    final cpSpent    = gs.initialCP - gs.commandPoints;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Stats tiles
+      Row(children: [
+        _StatTile('Round',     '${gs.round}'),
+        _StatTile('Surviving', '${alive.length} / ${gs.units.length}'),
+        _StatTile('STR Lost',  '$lostSTR / $totalSTR'),
+        _StatTile('AP Spent',  '$cpSpent'),
+      ]),
+
+      // Eliminated units list
+      if (eliminated.isNotEmpty) ...[
+        const SizedBox(height: 24),
+        Text('ELIMINATED',
+          style: GoogleFonts.cinzel(
+            color: AppColors.gold.withValues(alpha: 0.6),
+            fontSize: 10, letterSpacing: 2)),
+        const SizedBox(height: 10),
+        ...eliminated.map((u) => Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: AppColors.gold.withValues(alpha: 0.12))),
+          child: Row(children: [
+            Expanded(child: Text(u.displayName,
+              style: GoogleFonts.cinzel(
+                color: Colors.white60, fontSize: 13))),
+            if (u.eliminatedOnRound != null)
+              Text('Round ${u.eliminatedOnRound}',
+                style: GoogleFonts.cinzel(
+                  color: AppColors.grey.withValues(alpha: 0.55),
+                  fontSize: 11)),
+          ]))),
+      ],
+
+      // Alive units — STR remaining
+      if (alive.isNotEmpty) ...[
+        const SizedBox(height: 24),
+        Text('SURVIVING',
+          style: GoogleFonts.cinzel(
+            color: AppColors.gold.withValues(alpha: 0.6),
+            fontSize: 10, letterSpacing: 2)),
+        const SizedBox(height: 10),
+        ...alive.map((u) {
+          final maxCon = u.armyUnit.unit.con;
+          final frac   = maxCon > 0 ? u.currentCon / maxCon : 1.0;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: AppColors.gold.withValues(alpha: 0.12))),
+            child: Row(children: [
+              Expanded(child: Text(u.displayName,
+                style: GoogleFonts.cinzel(
+                  color: Colors.white70, fontSize: 13))),
+              Text('${u.currentCon}/$maxCon STR',
+                style: GoogleFonts.cinzel(
+                  color: frac < 0.4
+                    ? const Color(0xFFCC4444)
+                    : AppColors.gold.withValues(alpha: 0.7),
+                  fontSize: 11)),
+            ]));
+        }),
+      ],
+    ]);
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final String label, value;
+  const _StatTile(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: AppColors.gold.withValues(alpha: 0.2))),
+      child: Column(children: [
+        Text(value,
+          style: GoogleFonts.cinzel(
+            color: AppColors.gold, fontSize: 20,
+            fontWeight: FontWeight.w600)),
+        const SizedBox(height: 2),
+        Text(label,
+          style: GoogleFonts.cinzel(
+            color: AppColors.grey, fontSize: 9, letterSpacing: 1)),
+      ])));
 }

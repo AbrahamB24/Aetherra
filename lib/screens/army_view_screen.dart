@@ -57,6 +57,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
   static final sb    = Supabase.instance.client;
 
   bool _saving = false;
+  bool _bannerVisible = true;
   final Set<String> _collapsedGroups = {};
   String? _imageB64;
   Widget? _cachedPhoto;
@@ -128,19 +129,34 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
             const SizedBox(width: 4),
           ],
         ),
-        body: Stack(children: [
-          // Grid column with fixed top gap — never changes height regardless of lore
-          Column(children: [
-            const SizedBox(height: 115),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 8, 0, 2),
-              child: Center(child: PressBtn(
-                label: 'New Cohort',
-                centered: false,
-                fontSize: 14,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                onTap: () => _addGroupDialog(context, army)))),
-            Expanded(
+        body: Column(children: [
+          // Banner inline — slides up and fades on scroll
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 220),
+            opacity: _bannerVisible ? 1.0 : 0.0,
+            child: ClipRect(
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeInOut,
+                alignment: Alignment.bottomCenter,
+                heightFactor: _bannerVisible ? 1.0 : 0.0,
+                child: _buildHeader(context, army)))),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 2),
+            child: Center(child: PressBtn(
+              label: 'New Cohort',
+              centered: false,
+              fontSize: 14,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              onTap: () => _addGroupDialog(context, army)))),
+          Expanded(
+            child: Stack(children: [
+            NotificationListener<ScrollUpdateNotification>(
+              onNotification: (n) {
+                final show = n.metrics.pixels < 40;
+                if (show != _bannerVisible) setState(() => _bannerVisible = show);
+                return false;
+              },
               child: army.units.isEmpty
                 ? Center(child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -159,8 +175,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                               initialFactions: army.factionIds))),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: gold,
-                          side: BorderSide(
-                            color: gold.withValues(alpha: 0.4)),
+                          side: BorderSide(color: gold.withValues(alpha: 0.4)),
                           shape: const RoundedRectangleBorder()),
                         child: Text('Add Units',
                           style: GoogleFonts.cinzel(fontSize: 15))),
@@ -181,11 +196,27 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                       collapsedGroups: _collapsedGroups);
                   }),
             ),
-          ]),
-          // Header as overlay — can expand for lore without affecting grid height
-          Positioned(
-            top: 0, left: 0, right: 0,
-            child: _buildHeader(context, army)),
+              // gradient fade at top of scroll area
+              const Positioned(
+                top: 0, left: 0, right: 0, height: 36,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.dark, Colors.transparent]))))),
+              const Positioned(
+                bottom: 0, left: 0, right: 0, height: 36,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [AppColors.dark, Colors.transparent]))))),
+            ]),
+          ),
         ]),
       ));
   }
@@ -420,8 +451,14 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                       } else {
                         setS(() => removingBg = false);
                       }
-                    } catch (_) {
+                    } catch (e) {
                       setS(() => removingBg = false);
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                        backgroundColor: AppColors.dark,
+                        content: Text('Background removal failed: $e',
+                          style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
+                        duration: const Duration(seconds: 4),
+                      ));
                     }
                   },
                   icon: const Icon(Icons.auto_fix_high_outlined,
@@ -967,8 +1004,14 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                       } else {
                         setSt(() => removingBg = false);
                       }
-                    } catch (_) {
+                    } catch (e) {
                       setSt(() => removingBg = false);
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                        backgroundColor: AppColors.dark,
+                        content: Text('Background removal failed: $e',
+                          style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
+                        duration: const Duration(seconds: 4),
+                      ));
                     }
                   },
                   icon: const Icon(Icons.auto_fix_high_outlined, color: gold, size: 15),

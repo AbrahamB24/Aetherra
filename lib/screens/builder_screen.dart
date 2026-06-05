@@ -16,6 +16,7 @@ import '../services/game_data_service.dart';
 import '../app_theme.dart';
 import '../widgets/aetherra_dialog.dart';
 import '../widgets/aetherra_text_field.dart';
+import '../widgets/filter_widgets.dart';
 import '../widgets/group_trash_btn.dart';
 
 const _kBuilderBgPresets = [
@@ -57,7 +58,11 @@ class _BuilderScreenState extends State<BuilderScreen> {
   Set<String> _fTypes = {};
   String _sortBy      = 'name';
   bool   _sortAsc     = true;
-  bool   _sortHovered = false;
+  bool   _sortHovered  = false;
+  bool   _searchOpen   = false;
+  String _search       = '';
+  final TextEditingController _searchCtrl  = TextEditingController();
+  final FocusNode             _searchFocus = FocusNode();
   int    _tabIdx   = 0;
   double _armyWidth = 320.0;
   final Set<String> _collapsedGroups = {};
@@ -88,6 +93,8 @@ class _BuilderScreenState extends State<BuilderScreen> {
   void dispose() {
     _autoSaveTimer?.cancel();
     _listenedArmy?.removeListener(_scheduleAutoSave);
+    _searchCtrl.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -106,9 +113,11 @@ class _BuilderScreenState extends State<BuilderScreen> {
   }
 
   List<Map<String, dynamic>> get _filtered {
+    final q = _search.toLowerCase();
     final list = GameDataService.units.where((u) {
       if (_fFacs.isNotEmpty && !_fFacs.contains(u['faction_id'])) return false;
       if (_fTypes.isNotEmpty && !_fTypes.contains(u['type'])) return false;
+      if (q.isNotEmpty && !(u['name'] as String).toLowerCase().contains(q)) return false;
       return true;
     }).toList();
     list.sort((a, b) {
@@ -227,6 +236,17 @@ class _BuilderScreenState extends State<BuilderScreen> {
                 selected: _fTypes,
                 onChanged: (s) => setState(() => _fTypes = s)),
               const Spacer(),
+              SearchToggleBtn(
+                isOpen:   _searchOpen,
+                hasQuery: _search.isNotEmpty,
+                onTap: () {
+                  setState(() {
+                    _searchOpen = !_searchOpen;
+                    if (!_searchOpen) { _search = ''; _searchCtrl.clear(); }
+                  });
+                  if (_searchOpen) _searchFocus.requestFocus();
+                }),
+              const SizedBox(width: 6),
               MouseRegion(
                 onEnter: (_) => setState(() => _sortHovered = true),
                 onExit:  (_) => setState(() => _sortHovered = false),
@@ -276,6 +296,22 @@ class _BuilderScreenState extends State<BuilderScreen> {
                             ascending: _sortBy == s[0] && _sortAsc)),
                     ]))),  // PopupMenuButton + Theme
             ]))),       // Row + Container + SizedBox
+
+      AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: _searchOpen ? 46 : 0,
+        color: AppColors.dark,
+        clipBehavior: Clip.hardEdge,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+          child: AetherraTextField(
+            controller: _searchCtrl,
+            focusNode:  _searchFocus,
+            hintText:   'Search units…',
+            prefixIcon: const Icon(Icons.search, color: AppColors.grey, size: 18),
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+            onChanged: (v) => setState(() => _search = v)))),
 
       Expanded(
         child: _filtered.isEmpty
@@ -622,8 +658,14 @@ class _BuilderScreenState extends State<BuilderScreen> {
                   } else {
                     setSt(() => removingBg = false);
                   }
-                } catch (_) {
+                } catch (e) {
                   setSt(() => removingBg = false);
+                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                    backgroundColor: AppColors.dark,
+                    content: Text('Background removal failed: $e',
+                      style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
+                    duration: const Duration(seconds: 4),
+                  ));
                 }
               },
               icon: const Icon(Icons.auto_fix_high_outlined, color: gold, size: 15),

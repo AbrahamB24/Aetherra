@@ -13,10 +13,9 @@ import '../widgets/hover_icon_btn.dart';
 import '../widgets/aetherra_dialog.dart';
 import '../app_theme.dart';
 
-// ── Placeholder URLs — replace before publishing ──────────────────────────────
-const _kPrivacyUrl   = 'https://aetherra.app/privacy';
-const _kTermsUrl     = 'https://aetherra.app/terms';
-const _kSupportEmail = 'mailto:support@aetherra.app';
+const _kPrivacyUrl   = 'https://aetherra.netlify.app/privacy';
+const _kTermsUrl     = 'https://aetherra.netlify.app/terms';
+const _kSupportEmail = 'mailto:aetherra.support@gmail.com';
 const _kUpgradeUrl   = 'https://aetherra.app/premium';
 const _kStripePortal = 'https://billing.stripe.com/p/login/your-portal-id';
 const _kAppVersion   = '1.0.0';

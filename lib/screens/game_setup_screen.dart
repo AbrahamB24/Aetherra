@@ -261,23 +261,43 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
               fontSize: 18,
               padding: const EdgeInsets.symmetric(vertical: 0),
               onTap: () => setState(() => _step = 10)))))),
-      Expanded(child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // ── CONTINUE SAVED GAME ───────────────────────────────────
-          if (_loadingSaves)
-            const Center(child: CircularProgressIndicator(color: gold))
-          else if (_saves.isNotEmpty) ...[
-            _sectionHeader('CONTINUE SAVED GAME', Icons.play_circle_outline),
-            const SizedBox(height: 8),
-            for (final sv in _saves) _SaveRow(
-              save: sv,
-              armyData: _matchArmy(sv),
-              onContinue: () => _continueGame(sv),
-              onDelete: () => _deleteSave(sv),
-            ),
-          ],
-        ])),
+      Expanded(child: Stack(children: [
+        ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // ── CONTINUE SAVED GAME ───────────────────────────────────
+            if (_loadingSaves)
+              const Center(child: CircularProgressIndicator(color: gold))
+            else if (_saves.isNotEmpty) ...[
+              _sectionHeader('CONTINUE SAVED GAME', Icons.play_circle_outline),
+              const SizedBox(height: 8),
+              for (final sv in _saves) _SaveRow(
+                save: sv,
+                armyData: _matchArmy(sv),
+                onContinue: () => _continueGame(sv),
+                onDelete: () => _deleteSave(sv),
+              ),
+            ],
+          ]),
+        const Positioned(
+          top: 0, left: 0, right: 0, height: 36,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [AppColors.dark, Colors.transparent]))))),
+        const Positioned(
+          bottom: 0, left: 0, right: 0, height: 36,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [AppColors.dark, Colors.transparent]))))),
+      ])),
     ]);
   }
 
@@ -300,24 +320,44 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
                   MaterialPageRoute(builder: (_) => const NewArmyScreen()));
                 _loadArmies();
               }))))),
-      Expanded(child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        children: [
-          if (_loadingArmies)
-            const Center(child: Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(color: gold)))
-          else if (_armies.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: AppColors.dark,
-              child: Text('No saved armies. Create one in Army Builder first.',
-                style: GoogleFonts.cinzel(color: grey, fontSize: 12)))
-          else
-            ..._armies.map((a) => _ArmyRow(
-              army: a,
-              onTap: () { _selectArmy(a); setState(() => _step = 1); })),
-        ])),
+      Expanded(child: Stack(children: [
+        ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          children: [
+            if (_loadingArmies)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(color: gold)))
+            else if (_armies.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: AppColors.dark,
+                child: Text('No saved armies. Create one in Army Builder first.',
+                  style: GoogleFonts.cinzel(color: grey, fontSize: 12)))
+            else
+              ..._armies.map((a) => _ArmyRow(
+                army: a,
+                onTap: () { _selectArmy(a); setState(() => _step = 1); })),
+          ]),
+        const Positioned(
+          top: 0, left: 0, right: 0, height: 36,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [AppColors.dark, Colors.transparent]))))),
+        const Positioned(
+          bottom: 0, left: 0, right: 0, height: 36,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [AppColors.dark, Colors.transparent]))))),
+      ])),
     ]);
   }
   Widget _sectionHeader(String label, IconData icon) => Row(children: [
