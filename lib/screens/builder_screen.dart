@@ -512,9 +512,10 @@ class _BuilderScreenState extends State<BuilderScreen> {
       text: unit.customName.isNotEmpty ? unit.customName : unit.unit.name);
     final loreCtrl = TextEditingController(
       text: isUserUnit ? (unit.lore ?? '') : (unit.unit.lore ?? ''));
-    bool removingBg = false;
-    bool placeholderHovered = false;
-    String selColor = unit.bgColor ?? '#1E1A15';
+    bool    removingBg         = false;
+    bool    placeholderHovered = false;
+    String  selColor           = unit.bgColor ?? '#1E1A15';
+    String? bgError;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -636,7 +637,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
                 const SizedBox(width: 8),
                 Expanded(child: OutlinedButton.icon(
               onPressed: (removingBg || (unit.photoBase64 ?? '').isEmpty) ? null : () async {
-                setSt(() => removingBg = true);
+                setSt(() { removingBg = true; bgError = null; });
                 try {
                   final bytes  = decodePhotoBytes(unit.photoBase64!);
                   final result = await removeBg(bytes);
@@ -659,13 +660,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
                     setSt(() => removingBg = false);
                   }
                 } catch (e) {
-                  setSt(() => removingBg = false);
-                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                    backgroundColor: AppColors.dark,
-                    content: Text('Background removal failed: $e',
-                      style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
-                    duration: const Duration(seconds: 4),
-                  ));
+                  setSt(() { removingBg = false; bgError = e.toString(); });
                 }
               },
               icon: const Icon(Icons.auto_fix_high_outlined, color: gold, size: 15),
@@ -710,9 +705,13 @@ class _BuilderScreenState extends State<BuilderScreen> {
                   border: Border.all(color: gold, width: 2)))),
           ])),
               const SizedBox(height: 6),
-              Text('Tip: Upload a transparent PNG for better results.',
-                style: GoogleFonts.cinzel(color: grey.withValues(alpha: 0.85),
-                  fontSize: 10, fontStyle: FontStyle.italic)),
+              if (bgError != null)
+                Text(bgError!,
+                  style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 11))
+              else
+                Text('Tip: Upload a transparent PNG for better results.',
+                  style: GoogleFonts.cinzel(color: grey.withValues(alpha: 0.85),
+                    fontSize: 10, fontStyle: FontStyle.italic)),
               const SizedBox(height: 12),
               if (isUserUnit)
                 premiumLock(AetherraTextField(

@@ -330,6 +330,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
     final   loreCtrl = TextEditingController(text: ad['lore'] as String? ?? '');
     bool    removingBg         = false;
     bool    placeholderHovered = false;
+    String? bgError;
 
     if (!mounted || !context.mounted) return;
 
@@ -427,7 +428,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                 const SizedBox(width: 8),
                 Expanded(child: OutlinedButton.icon(
                   onPressed: (removingBg || imageB64 == null) ? null : () async {
-                    setS(() => removingBg = true);
+                    setS(() { removingBg = true; bgError = null; });
                     try {
                       final bytes  = decodePhotoBytes(imageB64!);
                       final result = await removeBg(bytes);
@@ -452,13 +453,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                         setS(() => removingBg = false);
                       }
                     } catch (e) {
-                      setS(() => removingBg = false);
-                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                        backgroundColor: AppColors.dark,
-                        content: Text('Background removal failed: $e',
-                          style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
-                        duration: const Duration(seconds: 4),
-                      ));
+                      setS(() { removingBg = false; bgError = e.toString(); });
                     }
                   },
                   icon: const Icon(Icons.auto_fix_high_outlined,
@@ -505,9 +500,13 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                       border: Border.all(color: AppColors.gold, width: 2)))),
               ]),
               const SizedBox(height: 6),
-              Text('Tip: Upload a transparent PNG for better results.',
-                style: GoogleFonts.cinzel(color: AppColors.grey.withValues(alpha: 0.85),
-                  fontSize: 10, fontStyle: FontStyle.italic)),
+              if (bgError != null)
+                Text(bgError!,
+                  style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 11))
+              else
+                Text('Tip: Upload a transparent PNG for better results.',
+                  style: GoogleFonts.cinzel(color: AppColors.grey.withValues(alpha: 0.85),
+                    fontSize: 10, fontStyle: FontStyle.italic)),
               const SizedBox(height: 10),
 
               _lbl('Lore (optional)'),
@@ -860,9 +859,10 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
     // Official units show their synchronized lore (read-only); user units show custom lore
     final loreCtrl = TextEditingController(
       text: isUserUnit ? (unit.lore ?? '') : (unit.unit.lore ?? ''));
-    bool removingBg = false;
-    bool placeholderHovered = false;
-    String selColor = unit.bgColor ?? '#1E1A15';
+    bool    removingBg         = false;
+    bool    placeholderHovered = false;
+    String  selColor           = unit.bgColor ?? '#1E1A15';
+    String? bgError;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -982,7 +982,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                 const SizedBox(width: 8),
                 Expanded(child: OutlinedButton.icon(
                   onPressed: (removingBg || (unit.photoBase64 ?? '').isEmpty) ? null : () async {
-                    setSt(() => removingBg = true);
+                    setSt(() { removingBg = true; bgError = null; });
                     try {
                       final bytes  = decodePhotoBytes(unit.photoBase64!);
                       final result = await removeBg(bytes);
@@ -1005,13 +1005,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                         setSt(() => removingBg = false);
                       }
                     } catch (e) {
-                      setSt(() => removingBg = false);
-                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                        backgroundColor: AppColors.dark,
-                        content: Text('Background removal failed: $e',
-                          style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
-                        duration: const Duration(seconds: 4),
-                      ));
+                      setSt(() { removingBg = false; bgError = e.toString(); });
                     }
                   },
                   icon: const Icon(Icons.auto_fix_high_outlined, color: gold, size: 15),
@@ -1056,9 +1050,13 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                       border: Border.all(color: gold, width: 2)))),
               ])),
               const SizedBox(height: 6),
-              Text('Tip: Upload a transparent PNG for better results.',
-                style: GoogleFonts.cinzel(color: grey.withValues(alpha: 0.85),
-                  fontSize: 10, fontStyle: FontStyle.italic)),
+              if (bgError != null)
+                Text(bgError!,
+                  style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 11))
+              else
+                Text('Tip: Upload a transparent PNG for better results.',
+                  style: GoogleFonts.cinzel(color: grey.withValues(alpha: 0.85),
+                    fontSize: 10, fontStyle: FontStyle.italic)),
               const SizedBox(height: 12),
               if (isUserUnit)
                 premiumLock(AetherraTextField(
