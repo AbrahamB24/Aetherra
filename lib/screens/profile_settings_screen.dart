@@ -16,8 +16,8 @@ import '../app_theme.dart';
 const _kPrivacyUrl   = 'https://aetherra.netlify.app/privacy';
 const _kTermsUrl     = 'https://aetherra.netlify.app/terms';
 const _kSupportEmail = 'mailto:aetherra.support@gmail.com';
-const _kUpgradeUrl   = 'https://aetherra.app/premium';
-const _kStripePortal = 'https://billing.stripe.com/p/login/your-portal-id';
+const _kUpgradeUrl   = 'https://buy.stripe.com/fZu7sLeoSg6ae8jfOWb3q00';
+const _kStripePortal = 'https://billing.stripe.com/p/login/fZu7sLeoSg6ae8jfOWb3q00';
 const _kAppVersion   = '1.0.0';
 
 class ProfileSettingsScreen extends StatefulWidget {

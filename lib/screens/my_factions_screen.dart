@@ -19,9 +19,7 @@ import '../widgets/aetherra_text_field.dart';
 import '../app_theme.dart';
 import 'faction_unit_picker_screen.dart';
 
-// ── Replace with your Stripe Payment Link after setup ──
-const _stripePaymentUrl =
-    'https://buy.stripe.com/test_dRm4gz0x1dPKcuh5gH2sM00';
+const _stripePaymentUrl = 'https://buy.stripe.com/fZu7sLeoSg6ae8jfOWb3q00';
 
 // AppColors.dark background presets — all have luminance < 0.10 so gold + white text
 // always meet WCAG AA contrast at large-text sizes.
