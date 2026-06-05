@@ -491,7 +491,7 @@ class _ArmyRowCardState extends State<_ArmyRowCard> {
                                     child: Icon(
                                       _loreExpanded ? Icons.menu_book : Icons.menu_book_outlined,
                                       color: AppColors.gold, size: 18,
-                                      shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]))))))),
+                                      shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])))))),
                           const SizedBox(width: 10),
                           GestureDetector(
                             onTap: () => setState(() => _unitsExpanded = !_unitsExpanded),
@@ -515,7 +515,7 @@ class _ArmyRowCardState extends State<_ArmyRowCard> {
                                       Icon(_unitsExpanded ? Icons.group : Icons.group_outlined,
                                         color: AppColors.gold, size: 18,
                                         shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]),
-                                    ]))))))),
+                                    ])))))),
                           const Spacer(),
                           Row(mainAxisSize: MainAxisSize.min, children: [
                             BannerStat('$_cp',   'AP'),
