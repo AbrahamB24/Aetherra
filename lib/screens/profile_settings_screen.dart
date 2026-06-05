@@ -152,6 +152,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     if (ok != true || !mounted) return;
     try {
       await Supabase.instance.client.auth.signOut();
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -366,19 +367,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
           _gap(),
 
-          // ── Sign Out ──────────────────────────────────────────────────────
-          OutlinedButton(
-            onPressed: _signOut,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: grey,
-              side: BorderSide(color: grey.withValues(alpha: 0.4)),
-              shape: const RoundedRectangleBorder(),
-              padding: const EdgeInsets.symmetric(vertical: 12)),
-            child: Center(child: Text('Sign Out',
-              style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1)))),
-
-          _gap(),
-
           // ── About ─────────────────────────────────────────────────────────
           _label('About'),
           const SizedBox(height: 12),
@@ -427,6 +415,16 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               shape: const RoundedRectangleBorder(),
               padding: const EdgeInsets.symmetric(vertical: 12)),
             child: Center(child: Text('Delete Profile',
+              style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1)))),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: _signOut,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: grey,
+              side: BorderSide(color: grey.withValues(alpha: 0.4)),
+              shape: const RoundedRectangleBorder(),
+              padding: const EdgeInsets.symmetric(vertical: 12)),
+            child: Center(child: Text('Sign Out',
               style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1)))),
         ],
       ),
