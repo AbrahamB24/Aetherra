@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
 
@@ -10,6 +10,7 @@ class FilterBtn extends StatefulWidget {
   final Map<String, Color>? dotColors;
   final Set<String> selected;
   final ValueChanged<Set<String>> onChanged;
+  final bool compact;
   const FilterBtn({
     super.key,
     required this.allLabel,
@@ -17,6 +18,7 @@ class FilterBtn extends StatefulWidget {
     required this.selected,
     required this.onChanged,
     this.dotColors,
+    this.compact = false,
   });
   @override State<FilterBtn> createState() => _FilterBtnState();
 }
@@ -85,9 +87,15 @@ class _FilterBtnState extends State<FilterBtn> {
                       orElse: () => MapEntry(sel.first, sel.first))
                     .value)
               : '${sel.length} selected';
+            final hPad = widget.compact ? 5.0 : 10.0;
+            final iconSz = widget.compact ? 12.0 : 15.0;
+            final chevSz = widget.compact ? 11.0 : 14.0;
+            final fs = widget.compact ? 11.0 : 12.0;
+            final gap1 = widget.compact ? 3.0 : 5.0;
+            final gap2 = widget.compact ? 2.0 : 4.0;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 120),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 5),
               decoration: BoxDecoration(
                 color: (_hovered || sel.isNotEmpty)
                   ? gold.withValues(alpha: 0.12) : Colors.transparent,
@@ -95,30 +103,32 @@ class _FilterBtnState extends State<FilterBtn> {
                   color: (_hovered || sel.isNotEmpty)
                     ? gold : gold.withValues(alpha: 0.3))),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.filter_list, color: gold, size: 15),
-                const SizedBox(width: 5),
+                Icon(Icons.filter_list, color: gold, size: iconSz),
+                SizedBox(width: gap1),
                 Text(label,
-                  style: GoogleFonts.cinzel(color: gold, fontSize: 12),
+                  style: GoogleFonts.cinzel(color: gold, fontSize: fs),
                   maxLines: 1),
-                const SizedBox(width: 4),
+                SizedBox(width: gap2),
                 Icon(_entry != null ? Icons.expand_less : Icons.expand_more,
-                  color: gold, size: 14),
+                  color: gold, size: chevSz),
               ]));
           }))));
 }
 
-/// Sort popup button â€” identical to the sort button in builder_screen.dart.
+/// Sort popup button — identical to the sort button in builder_screen.dart.
 class SortBtn extends StatefulWidget {
   final String sortBy;
   final bool ascending;
   final List<List<String>> options; // [[key, label], ...]
   final ValueChanged<String> onSelected;
+  final bool compact;
   const SortBtn({
     super.key,
     required this.sortBy,
     required this.ascending,
     required this.options,
     required this.onSelected,
+    this.compact = false,
   });
   @override State<SortBtn> createState() => _SortBtnState();
 }
@@ -146,14 +156,17 @@ class _SortBtnState extends State<SortBtn> {
         onSelected: widget.onSelected,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.compact ? 6 : 10, vertical: 4),
           decoration: BoxDecoration(
             color: _hovered ? gold.withValues(alpha: 0.12) : Colors.transparent,
             border: Border.all(color: _hovered ? gold : gold.withValues(alpha: 0.4))),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.sort, color: gold, size: 16),
-            const SizedBox(width: 4),
-            Text('Sort', style: GoogleFonts.cinzel(color: gold, fontSize: 13)),
+            Icon(Icons.sort, color: gold, size: widget.compact ? 14 : 16),
+            if (!widget.compact) ...[
+              const SizedBox(width: 4),
+              Text('Sort', style: GoogleFonts.cinzel(color: gold, fontSize: 13)),
+            ],
           ])),
         itemBuilder: (_) => [
           for (final s in widget.options)
@@ -167,7 +180,7 @@ class _SortBtnState extends State<SortBtn> {
         ])));
 }
 
-// â”€â”€ Overlay drop menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Overlay drop menu ──────────────────────────────────────────────────────
 class _FilterDropMenu extends StatelessWidget {
   final LayerLink link;
   final List<MapEntry<String, String>> options;
@@ -263,16 +276,18 @@ class _FilterCheckItemState extends State<FilterCheckItem> {
         ]))));
 }
 
-/// Magnifier toggle button â€” highlights when open or has an active query.
+/// Magnifier toggle button — highlights when open or has an active query.
 class SearchToggleBtn extends StatefulWidget {
   final bool isOpen;
   final bool hasQuery;
   final VoidCallback onTap;
+  final bool compact;
   const SearchToggleBtn({
     super.key,
     required this.isOpen,
     required this.hasQuery,
     required this.onTap,
+    this.compact = false,
   });
   @override State<SearchToggleBtn> createState() => _SearchToggleBtnState();
 }
@@ -287,14 +302,16 @@ class _SearchToggleBtnState extends State<SearchToggleBtn> {
       onTap: widget.onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 5 : 8, vertical: 5),
         decoration: BoxDecoration(
           color: (_hovered || widget.isOpen || widget.hasQuery)
             ? gold.withValues(alpha: 0.12) : Colors.transparent,
           border: Border.all(
             color: (_hovered || widget.isOpen || widget.hasQuery)
               ? gold : gold.withValues(alpha: 0.3))),
-        child: const Icon(Icons.search, color: gold, size: 15))));
+        child: Icon(Icons.search, color: gold,
+          size: widget.compact ? 13 : 15))));
 }
 
 /// Hover-aware sort popup item used inside SortBtn.

@@ -567,12 +567,14 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
 
   Widget _unitFilterBar() => LayoutBuilder(builder: (_, bc) {
     final c = bc.maxWidth < 430;
+    final xs = bc.maxWidth < 360;
     return Column(children: [
     SizedBox(height: 44, child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
         FilterBtn(
           allLabel: c ? 'Src' : 'Sources',
+          compact: xs,
           options: const [
             MapEntry('no_faction', 'No Faction'),
             MapEntry('own',        'Own'),
@@ -580,18 +582,20 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
           ],
           selected: _unitSourceF,
           onChanged: (s) => setState(() { _unitSourceF.clear(); _unitSourceF.addAll(s); })),
-        const SizedBox(width: 6),
+        SizedBox(width: xs ? 3 : 6),
         FilterBtn(
           allLabel: c ? 'Fac' : 'Factions',
+          compact: xs,
           options: _allFacs.map((f) =>
             MapEntry(f['id'] as String, f['name'] as String)).toList(),
           dotColors: {for (final f in _allFacs)
             f['id'] as String: AppColors.parseHex(f['color'] as String? ?? '#888888')},
           selected: _unitFacF,
           onChanged: (s) => setState(() { _unitFacF.clear(); _unitFacF.addAll(s); })),
-        const SizedBox(width: 6),
+        SizedBox(width: xs ? 3 : 6),
         FilterBtn(
           allLabel: c ? 'Typ' : 'Types',
+          compact: xs,
           options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
             .map((t) => MapEntry(t, t)).toList(),
           selected: _unitTypeF,
@@ -600,6 +604,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
         SortBtn(
           sortBy: _unitSort,
           ascending: _unitSortAsc,
+          compact: xs,
           options: const [
             ['name','Name A→Z'], ['cost','Points ↓'],
             ['atk','ATK ↓'], ['def','DEF ↓'],
@@ -609,10 +614,11 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
             if (v == _unitSort) { _unitSortAsc = !_unitSortAsc; }
             else { _unitSort = v; _unitSortAsc = true; }
           })),
-        const SizedBox(width: 8),
+        SizedBox(width: xs ? 4 : 8),
         SearchToggleBtn(
           isOpen: _unitSearchOpen,
           hasQuery: _unitSearch.isNotEmpty,
+          compact: xs,
           onTap: () {
             setState(() {
               _unitSearchOpen = !_unitSearchOpen;
