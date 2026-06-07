@@ -9,6 +9,7 @@ import 'armies_screen.dart';
 import 'game_setup_screen.dart';
 import 'rulebook_screen.dart';
 import 'my_factions_screen.dart';
+import 'online_lobby_screen.dart';
 import 'dev_screen.dart';
 import 'profile_settings_screen.dart';
 
@@ -130,6 +131,13 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle: 'Start or continue a battle',
               onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const GameSetupScreen()))),
+            const SizedBox(height: 10),
+            _NavCard(
+              icon: Icons.wifi_outlined,
+              title: 'Online Battle',
+              subtitle: 'Challenge another commander via room code',
+              onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const OnlineLobbyScreen()))),
             const SizedBox(height: 10),
             _NavCard(
               icon: Icons.menu_book,

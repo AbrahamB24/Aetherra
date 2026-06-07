@@ -27,9 +27,12 @@ class TokenBag {
       : bag = bag ?? [],
         drawn = drawn ?? [];
 
-  int get bagCount => bag.length;
+  int get bagCount    => bag.length;
   int get playerCount => bag.where((t) => t.color == 'player').length;
   int get enemyCount  => bag.where((t) => t.color == 'enemy').length;
+  // Online mode: tokens use 'host'/'guest' colors
+  int get hostCount   => bag.where((t) => t.color == 'host').length;
+  int get guestCount  => bag.where((t) => t.color == 'guest').length;
 
   // Draw random token
   Token? drawRandom() {
@@ -70,6 +73,20 @@ class TokenBag {
     }
     drawn.clear();
     lastDrawn = null;
+  }
+
+  // Online mode: build bag with 'host'/'guest' token colors
+  factory TokenBag.buildOnline({
+    required List<GameUnit> hostUnits,
+    required List<GameUnit> guestUnits,
+  }) {
+    final tokens = <Token>[
+      ...hostUnits.where((u) => !u.isEliminated)
+          .map((u) => Token(id: 'h_${u.instanceId}', color: 'host')),
+      ...guestUnits.where((u) => !u.isEliminated)
+          .map((u) => Token(id: 'g_${u.instanceId}', color: 'guest')),
+    ]..shuffle();
+    return TokenBag(bag: tokens);
   }
 
   // Rebuild bag from scratch
