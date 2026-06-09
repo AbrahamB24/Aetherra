@@ -13,6 +13,77 @@ void showActionLogSheet(BuildContext ctx, List<ActionLogEntry> log) {
     builder: (_) => _ActionLogSheet(log: log));
 }
 
+// ── Color & icon maps ─────────────────────────────────────────────────────────
+//
+// Palette (all distinct):
+//   damage   → red     #CF4040  ❤  favorite
+//   heal     → green   #5A9060  ❤  favorite
+//   eliminate→ grey    #888888  ⊗  highlight_off
+//   activate → gold    #C9A84C  ✓  check_circle_outline
+//   reactive → purple  #8855CC  ■  solid square  (reactive = costs AP)
+//   cp       → indigo  #4466BB  ⚡ bolt_outlined   (AP pool change)
+//   condition→ orange  #E07828  ⚠  warning_amber_outlined
+//   token    → sky     #3A8FC0  ■  solid square
+//   dice     → teal    #70C0B8  D20
+//   round    → gold    #C9A84C  (divider only)
+
+const _tagColors = <String, Color>{
+  'damage':    Color(0xFFCF4040),
+  'heal':      Color(0xFF5A9060),
+  'eliminate': Color(0xFF888888),
+  'activate':  Color(0xFFC9A84C),
+  'reactive':  Color(0xFF8855CC),
+  'condition': Color(0xFFE07828),
+  'cp':        Color(0xFF4466BB),
+  'token':     Color(0xFF3A8FC0),
+  'round':     Color(0xFFC9A84C),
+  'dice':      Color(0xFF70C0B8),
+};
+
+// Tags that use a solid square instead of an outlined icon
+const _squareTags = {'token'};
+
+const _tagIcons = <String, IconData>{
+  'damage':    Icons.favorite,
+  'heal':      Icons.favorite,
+  'eliminate': Icons.highlight_off,
+  'activate':  Icons.check_circle_outline,
+  'reactive':  Icons.bolt_outlined,
+  'condition': Icons.warning_amber_outlined,
+  'cp':        Icons.bolt_outlined,
+  'token':     Icons.square,
+  'round':     Icons.flag_outlined,
+  'dice':      Icons.circle_outlined, // unused — _DiceTile renders D20Icon
+};
+
+// ── Filter groups ─────────────────────────────────────────────────────────────
+const _filterGroups = <String, List<String>>{
+  'STR':      ['damage', 'heal', 'eliminate'],
+  'AP':       ['cp', 'reactive'],
+  'Activate': ['activate'],
+  'Status':   ['condition'],
+  'Tokens':   ['token'],
+  'Dice':     ['dice'],
+};
+
+const _filterIcons = <String, IconData>{
+  'STR':      Icons.favorite,
+  'AP':       Icons.bolt_outlined, // cp = indigo bolt, reactive = purple bolt
+  'Activate': Icons.check_circle_outline,
+  'Status':   Icons.warning_amber_outlined,
+  'Tokens':   Icons.square,
+  'Dice':     Icons.circle_outlined,
+};
+
+const _filterColors = <String, Color>{
+  'STR':      Color(0xFFCF4040),
+  'AP':       Color(0xFF8855CC),
+  'Activate': Color(0xFFC9A84C),
+  'Status':   Color(0xFFE07828),
+  'Tokens':   Color(0xFF3A8FC0),
+  'Dice':     Color(0xFF70C0B8),
+};
+
 // ── Sheet ─────────────────────────────────────────────────────────────────────
 class _ActionLogSheet extends StatefulWidget {
   final List<ActionLogEntry> log;
@@ -22,8 +93,8 @@ class _ActionLogSheet extends StatefulWidget {
 
 class _ActionLogSheetState extends State<_ActionLogSheet> {
   late final List<ActionLogEntry> _reversed;
-  // displayed round number (from divider text "Round N") → key on that tile
   final _roundKeys = <int, GlobalKey>{};
+  String? _filterGroup; // null = All
 
   @override
   void initState() {
@@ -52,10 +123,16 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
     }
   }
 
+  bool _isVisible(ActionLogEntry e) {
+    if (_filterGroup == null) return true;
+    if (e.tag == 'round') return true; // always show round dividers for context
+    return (_filterGroups[_filterGroup] ?? []).contains(e.tag);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Show newest round first in the chip bar
-    final rounds = _roundKeys.keys.toList()..sort((a, b) => b.compareTo(a));
+    final rounds  = _roundKeys.keys.toList()..sort((a, b) => b.compareTo(a));
+    final visible = _reversed.where(_isVisible).toList();
 
     return DraggableScrollableSheet(
       expand: false,
@@ -72,8 +149,9 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
           style: GoogleFonts.cinzel(
             color: AppColors.gold, fontSize: 15, letterSpacing: 1)),
         const SizedBox(height: 8),
-        // Round-jump dropdown (only when multiple rounds played)
-        if (rounds.isNotEmpty) ...[
+
+        // ── Round-jump dropdown ───────────────────────────────────────────────
+        if (rounds.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
             child: Row(children: [
@@ -112,14 +190,39 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
                         child:   _RoundMenuItem(round: r)),
                   ])),
             ])),
-        ],
-        Expanded(child: _reversed.isEmpty
-          ? Center(child: Text('No actions yet',
+
+        // ── Filter chips ──────────────────────────────────────────────────────
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Row(children: [
+            _FilterChip(
+              label:  'All',
+              icon:   Icons.list_outlined,
+              color:  AppColors.grey,
+              active: _filterGroup == null,
+              onTap:  () => setState(() => _filterGroup = null)),
+            const SizedBox(width: 6),
+            for (final group in _filterGroups.keys) ...[
+              _FilterChip(
+                label:  group,
+                icon:   _filterIcons[group]!,
+                color:  _filterColors[group]!,
+                active: _filterGroup == group,
+                onTap:  () => setState(() =>
+                    _filterGroup = _filterGroup == group ? null : group)),
+              const SizedBox(width: 6),
+            ],
+          ])),
+
+        // ── Log list ──────────────────────────────────────────────────────────
+        Expanded(child: visible.isEmpty
+          ? Center(child: Text('No entries',
               style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13)))
           : ListView(
               controller: scroll,
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-              children: _reversed.map((e) {
+              children: visible.map((e) {
                 GlobalKey? key;
                 if (e.tag == 'round') {
                   final n = _roundFromText(e.text);
@@ -132,34 +235,57 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
   }
 }
 
+// ── Filter chip ───────────────────────────────────────────────────────────────
+class _FilterChip extends StatefulWidget {
+  final String       label;
+  final IconData     icon;
+  final Color        color;
+  final bool         active;
+  final VoidCallback onTap;
+  const _FilterChip({
+    required this.label, required this.icon, required this.color,
+    required this.active, required this.onTap});
+  @override State<_FilterChip> createState() => _FilterChipState();
+}
+class _FilterChipState extends State<_FilterChip> {
+  bool _hovered = false;
+  @override Widget build(BuildContext context) {
+    final col = widget.color;
+    final on  = widget.active || _hovered;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            color:  on ? col.withValues(alpha: 0.12) : Colors.transparent,
+            border: Border.all(
+              color: on ? col.withValues(alpha: 0.7)
+                        : AppColors.grey.withValues(alpha: 0.25),
+              width: on ? 1.2 : 0.8)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(widget.icon,
+              size: 11,
+              color: on ? col : AppColors.grey.withValues(alpha: 0.45)),
+            const SizedBox(width: 5),
+            Text(widget.label,
+              style: GoogleFonts.cinzel(
+                color: on ? col : AppColors.grey.withValues(alpha: 0.55),
+                fontSize: 10,
+                letterSpacing: 0.4,
+                fontWeight: on ? FontWeight.w600 : FontWeight.w400)),
+          ]))));
+  }
+}
+
 // ── Tile ──────────────────────────────────────────────────────────────────────
 class ActionLogTile extends StatelessWidget {
   final ActionLogEntry entry;
   const ActionLogTile({super.key, required this.entry});
-
-  static const _tagIcons = <String, IconData>{
-    'damage':    Icons.favorite,
-    'heal':      Icons.favorite,
-    'eliminate': Icons.highlight_off,
-    'activate':  Icons.check_circle_outline,
-    'condition': Icons.warning_amber_outlined,
-    'cp':        Icons.bolt_outlined,
-    'token':     Icons.casino_outlined,
-    'round':     Icons.flag_outlined,
-    'dice':      Icons.circle_outlined, // unused — _DiceTile renders D20Icon
-  };
-
-  static const _tagColors = <String, Color>{
-    'damage':    Color(0xFFCF4040),
-    'heal':      Color(0xFF5A9060),
-    'eliminate': Color(0xFF888888),
-    'activate':  Color(0xFFC9A84C),
-    'condition': Color(0xFFE07828),
-    'cp':        Color(0xFF8855CC),
-    'token':     Color(0xFF9870CC),
-    'round':     Color(0xFFC9A84C),
-    'dice':      Color(0xFF70C0B8),
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +314,14 @@ class ActionLogTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(children: [
-        Icon(icon, size: 13, color: color.withValues(alpha: 0.8)),
+        SizedBox(width: 13, height: 13,
+          child: _squareTags.contains(entry.tag)
+            ? Center(child: Container(
+                width: 9, height: 9,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(2))))
+            : Icon(icon, size: 13, color: color.withValues(alpha: 0.8))),
         const SizedBox(width: 7),
         Expanded(child: Text(entry.text,
           style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 11))),

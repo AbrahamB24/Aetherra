@@ -624,6 +624,7 @@ class OnlineGameManager extends ChangeNotifier {
 
       // Deduct 1 AP
       _myCP = (_myCP - 1).clamp(0, _myInitialCP);
+      _log('reactive', 'Reactive activation (-1 AP → $_myCP)');
 
       // Draw MY token (no reactive popup for opponent)
       final myColor = _myRole == OnlineRole.host ? 'host' : 'guest';
