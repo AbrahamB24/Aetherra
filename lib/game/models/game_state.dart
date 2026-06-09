@@ -120,6 +120,24 @@ class TokenBag {
   );
 }
 
+// â”€â”€ ActionLogEntry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+class ActionLogEntry {
+  final int     round;
+  final String  tag;     // 'damage'|'heal'|'eliminate'|'activate'|'condition'|'cp'|'token'|'round'|'dice'
+  final String  text;
+  final String? player;  // null = offline (single player); non-null = army name of acting player
+
+  const ActionLogEntry({required this.round, required this.tag, required this.text, this.player});
+
+  Map<String, dynamic> toJson() => {'round': round, 'tag': tag, 'text': text, if (player != null) 'player': player};
+  factory ActionLogEntry.fromJson(Map<String, dynamic> j) => ActionLogEntry(
+    round:  (j['round'] as num).toInt(),
+    tag:    j['tag']    as String? ?? 'round',
+    text:   j['text']   as String? ?? '',
+    player: j['player'] as String?,
+  );
+}
+
 // â”€â”€ GameUnit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class GameUnit {
   final String instanceId;
@@ -129,6 +147,8 @@ class GameUnit {
   bool expanded;      // whether card is expanded when activated
   final String groupName;
   int? eliminatedOnRound;
+  List<String> conditions; // active status conditions e.g. ['Stunned', 'Pinned']
+  String note;             // freeform battle notes
 
   GameUnit({
     required this.instanceId,
@@ -138,6 +158,8 @@ class GameUnit {
     this.expanded         = true,
     required this.groupName,
     this.eliminatedOnRound,
+    this.conditions       = const [],
+    this.note             = '',
   });
 
   bool get isEliminated => currentCon <= 0;
@@ -166,6 +188,8 @@ class GameUnit {
     'groupName':         groupName,
     'eliminatedOnRound': eliminatedOnRound,
     'lore':              armyUnit.lore,
+    'conditions':        conditions,
+    'note':              note,
   };
 
   factory GameUnit.fromArmyUnit(ArmyUnit u) => GameUnit(
@@ -197,6 +221,7 @@ class GameState {
   String?    saveId;    // UUID from Supabase if saved
   String?    saveName;  // user-defined save name
   List<int>  roundDiceRolls = [];
+  List<ActionLogEntry> actionLog = [];
 
   GameState({
     required this.role,
@@ -239,5 +264,6 @@ class GameState {
     'tokenBag':        tokenBag.toJson(),
     'units':           units.map((u) => u.toJson()).toList(),
     'roundDiceRolls':  roundDiceRolls,
+    'actionLog':       actionLog.map((e) => e.toJson()).toList(),
   };
 }

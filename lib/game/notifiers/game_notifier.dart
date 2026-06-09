@@ -151,6 +151,8 @@ class GameNotifier extends ChangeNotifier {
           expanded:         u['expanded']         as bool? ?? true,
           groupName:        u['groupName']        as String? ?? '',
           eliminatedOnRound: u['eliminatedOnRound'] as int?,
+          conditions:       List<String>.from(u['conditions'] as List? ?? []),
+          note:             u['note'] as String? ?? '',
         );
         gameUnits.add(gameUnit);
       }
@@ -178,6 +180,8 @@ class GameNotifier extends ChangeNotifier {
       _state!.saveName   = saveRow['name'] as String? ?? data['saveName'] as String?;
       _state!.roundDiceRolls = (data['roundDiceRolls'] as List? ?? [])
           .map((e) => (e as num).toInt()).toList();
+      _state!.actionLog = (data['actionLog'] as List? ?? [])
+          .map((e) => ActionLogEntry.fromJson(e as Map<String, dynamic>)).toList();
       _state!.armyBgColor  = data['armyBgColor']  as String?;
       _state!.armyImageB64 = data['armyImageB64'] as String?;
       _state!.armyLore     = data['armyLore']     as String?;
@@ -248,6 +252,15 @@ class GameNotifier extends ChangeNotifier {
   }
 
   // â”€â”€ UNIT CON â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── ACTION LOG ───────────────────────────────────────────────────────────
+  List<ActionLogEntry> get actionLog => _state?.actionLog ?? const [];
+
+  void _log(String tag, String text) {
+    if (_state == null) return;
+    _state!.actionLog.add(ActionLogEntry(round: _state!.round, tag: tag, text: text));
+    if (_state!.actionLog.length > 300) _state!.actionLog.removeAt(0);
+  }
+
   void adjustCon(String instanceId, int delta) {
     final u = _unit(instanceId);
     if (u == null) return;
@@ -255,8 +268,14 @@ class GameNotifier extends ChangeNotifier {
     u.adjustCon(delta);
     if (u.isEliminated && !wasEliminated) {
       u.eliminatedOnRound = _state!.round;
+      _log('eliminate', '${u.displayName} eliminated');
     } else if (!u.isEliminated && wasEliminated) {
       u.eliminatedOnRound = null;
+      _log('heal', '${u.displayName}: restored');
+    } else if (delta < 0) {
+      _log('damage', '${u.displayName}: $delta STR (${u.currentCon}/${u.armyUnit.unit.con})');
+    } else if (delta > 0) {
+      _log('heal', '${u.displayName}: +$delta STR (${u.currentCon}/${u.armyUnit.unit.con})');
     }
     // If eliminated and GM, remove token from bag
     if (u.isEliminated && _state!.role == PlayerRole.gamemaster) {
@@ -268,13 +287,37 @@ class GameNotifier extends ChangeNotifier {
 
   // â”€â”€ ACTIVATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   void activateUnit(String instanceId) {
-    _unit(instanceId)?.activate();
+    final u = _unit(instanceId);
+    u?.activate();
+    if (u != null) _log('activate', '${u.displayName} activated');
     notifyListeners();
     _autoSave();
   }
 
   void deactivateUnit(String instanceId) {
     _unit(instanceId)?.deactivate();
+    notifyListeners();
+    _autoSave();
+  }
+
+  void setNote(String instanceId, String note) {
+    final u = _unit(instanceId);
+    if (u == null) return;
+    u.note = note;
+    notifyListeners();
+    _autoSave();
+  }
+
+  void toggleCondition(String instanceId, String condition) {
+    final u = _unit(instanceId);
+    if (u == null) return;
+    if (u.conditions.contains(condition)) {
+      u.conditions.remove(condition);
+      _log('condition', '${u.displayName}: $condition removed');
+    } else {
+      u.conditions.add(condition);
+      _log('condition', '${u.displayName}: $condition added');
+    }
     notifyListeners();
     _autoSave();
   }
@@ -293,6 +336,8 @@ class GameNotifier extends ChangeNotifier {
       activated:  unit.activated,
       expanded:   unit.expanded,
       groupName:  newGroup,
+      conditions: List.from(unit.conditions),
+      note:       unit.note,
     );
     _state!.units.insert(to, newUnit);
     notifyListeners();
@@ -320,6 +365,8 @@ class GameNotifier extends ChangeNotifier {
     if (_state == null) return;
     final max = _state!.initialCP;
     _state!.commandPoints = (_state!.commandPoints + delta).clamp(0, max);
+    if (delta < 0) _log('cp', 'CP: $delta → ${_state!.commandPoints}');
+    if (delta > 0) _log('cp', 'CP: +$delta → ${_state!.commandPoints}');
     notifyListeners();
     _autoSave();
   }
@@ -327,13 +374,19 @@ class GameNotifier extends ChangeNotifier {
   // â”€â”€ TOKEN BAG (GM only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Token? drawRandom() {
     final t = _state?.tokenBag.drawRandom();
-    if (t != null) { notifyListeners(); _autoSave(); }
+    if (t != null) {
+      _log('token', 'Token drawn: ${t.color}');
+      notifyListeners(); _autoSave();
+    }
     return t;
   }
 
   Token? drawByColor(String color) {
     final t = _state?.tokenBag.drawByColor(color);
-    if (t != null) { notifyListeners(); _autoSave(); }
+    if (t != null) {
+      _log('token', 'Token drawn: ${t.color}');
+      notifyListeners(); _autoSave();
+    }
     return t;
   }
 
@@ -353,6 +406,7 @@ class GameNotifier extends ChangeNotifier {
   void recordDiceRoll(List<int> rolls) {
     if (_state == null) return;
     _state!.roundDiceRolls.addAll(rolls);
+    _log('dice', 'Roll: ${rolls.join(', ')} (sum ${rolls.fold(0, (a, b) => a + b)})');
     notifyListeners();
   }
 
@@ -377,6 +431,7 @@ class GameNotifier extends ChangeNotifier {
       u.expanded = true;
     }
     _state!.roundDiceRolls.clear();
+    _log('round', '── Round ${_state!.round + 1} started ──');
     _state!.round++;
     notifyListeners();
     _autoSave();

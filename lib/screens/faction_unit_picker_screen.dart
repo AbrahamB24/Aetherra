@@ -41,6 +41,7 @@ class _FactionUnitPickerScreenState extends State<FactionUnitPickerScreen> {
   late final Set<String> _assignedOfficialRefs;
 
   String      _search  = '';
+  final _searchCtrl = TextEditingController();
   Set<String> _fTypes  = {};
   Set<String> _selFacs = {};
   String      _sortBy  = 'name';
@@ -62,6 +63,12 @@ class _FactionUnitPickerScreenState extends State<FactionUnitPickerScreen> {
 
     _assignedOfficialRefs = Set<String>.from(
       (widget.faction['unit_refs'] as List?)?.cast<String>() ?? []);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   // ── Faction name lookup ───────────────────────────────────────
@@ -334,11 +341,13 @@ class _FactionUnitPickerScreenState extends State<FactionUnitPickerScreen> {
       Container(color: AppColors.dark,
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
         child: AetherraTextField(
+          controller: _searchCtrl,
           style: const TextStyle(color: AppColors.textLight, fontSize: 13),
           hintText: 'Search units…',
           hintStyle: TextStyle(color: grey.withValues(alpha: 0.45)),
           prefixIcon: const Icon(Icons.search, color: grey, size: 16),
           isDense: true,
+          clearable: true,
           contentPadding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
           onChanged: (v) => setState(() => _search = v))),
       // Responsive card grid

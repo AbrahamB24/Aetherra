@@ -98,10 +98,7 @@ class _FilterBtnState extends State<FilterBtn> {
               padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 5),
               decoration: BoxDecoration(
                 color: (_hovered || sel.isNotEmpty)
-                  ? gold.withValues(alpha: 0.12) : Colors.transparent,
-                border: Border.all(
-                  color: (_hovered || sel.isNotEmpty)
-                    ? gold : gold.withValues(alpha: 0.3))),
+                  ? gold.withValues(alpha: 0.12) : Colors.transparent),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.filter_list, color: gold, size: iconSz),
                 SizedBox(width: gap1),
@@ -159,8 +156,7 @@ class _SortBtnState extends State<SortBtn> {
           padding: EdgeInsets.symmetric(
             horizontal: widget.compact ? 6 : 10, vertical: 4),
           decoration: BoxDecoration(
-            color: _hovered ? gold.withValues(alpha: 0.12) : Colors.transparent,
-            border: Border.all(color: _hovered ? gold : gold.withValues(alpha: 0.4))),
+            color: _hovered ? gold.withValues(alpha: 0.12) : Colors.transparent),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.sort, color: gold, size: widget.compact ? 14 : 16),
             if (!widget.compact) ...[
@@ -306,10 +302,7 @@ class _SearchToggleBtnState extends State<SearchToggleBtn> {
           horizontal: widget.compact ? 5 : 8, vertical: 5),
         decoration: BoxDecoration(
           color: (_hovered || widget.isOpen || widget.hasQuery)
-            ? gold.withValues(alpha: 0.12) : Colors.transparent,
-          border: Border.all(
-            color: (_hovered || widget.isOpen || widget.hasQuery)
-              ? gold : gold.withValues(alpha: 0.3))),
+            ? gold.withValues(alpha: 0.12) : Colors.transparent),
         child: Icon(Icons.search, color: gold,
           size: widget.compact ? 13 : 15))));
 }

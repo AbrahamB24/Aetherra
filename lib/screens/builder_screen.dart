@@ -19,6 +19,7 @@ import '../widgets/aetherra_text_field.dart';
 import '../widgets/filter_widgets.dart';
 import '../widgets/group_trash_btn.dart';
 import 'my_factions_screen.dart';
+import 'army_view_screen.dart';
 
 const _kBuilderBgPresets = [
   '#0D0B09', '#08111E', '#0A1A08', '#1A0808',
@@ -71,7 +72,6 @@ class _BuilderScreenState extends State<BuilderScreen> {
   ArmyState? _listenedArmy;
   Timer?     _autoSaveTimer;
   bool _saving = false;
-  bool _saved  = false;
 
   @override
   void initState() {
@@ -144,23 +144,8 @@ class _BuilderScreenState extends State<BuilderScreen> {
       backgroundColor: AppColors.dark,
       appBar: AppBar(
         leading: widget.showBack
-          ? NavBtn(icon: Icons.arrow_back_ios_new,
-              onPressed: () => Navigator.pop(context))
-          : NavBtn(icon: Icons.home_outlined,
-              onPressed: () async {
-                await showAetherraDialog(context,
-                  title: 'Army Saved',
-                  content: Text(
-                    'Your army has been saved automatically. You can continue editing it anytime.',
-                    style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
-                  actions: [
-                    aDialogBtn('Stay', grey, () => Navigator.pop(context)),
-                    aDialogBtn('Go Home', gold, () {
-                      Navigator.pop(context);
-                      Navigator.of(context).popUntil((r) => r.isFirst);
-                    }),
-                  ]);
-              }),
+          ? NavBtn(icon: Icons.arrow_back_ios_new, onPressed: _showExitSheet)
+          : NavBtn(icon: Icons.home_outlined,      onPressed: _showExitSheet),
         title: Text('Army Builder', style: GoogleFonts.cinzel(
           color: gold, fontSize: 17, letterSpacing: 2)),
       ),
@@ -237,17 +222,6 @@ class _BuilderScreenState extends State<BuilderScreen> {
                 selected: _fTypes,
                 onChanged: (s) => setState(() => _fTypes = s)),
               const Spacer(),
-              SearchToggleBtn(
-                isOpen:   _searchOpen,
-                hasQuery: _search.isNotEmpty,
-                onTap: () {
-                  setState(() {
-                    _searchOpen = !_searchOpen;
-                    if (!_searchOpen) { _search = ''; _searchCtrl.clear(); }
-                  });
-                  if (_searchOpen) _searchFocus.requestFocus();
-                }),
-              const SizedBox(width: 6),
               MouseRegion(
                 onEnter: (_) => setState(() => _sortHovered = true),
                 onExit:  (_) => setState(() => _sortHovered = false),
@@ -270,9 +244,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: _sortHovered
-                          ? gold.withValues(alpha: 0.12) : Colors.transparent,
-                        border: Border.all(
-                          color: _sortHovered ? gold : gold.withValues(alpha: 0.4))),
+                          ? gold.withValues(alpha: 0.12) : Colors.transparent),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         const Icon(Icons.sort, color: gold, size: 16),
                         const SizedBox(width: 4),
@@ -296,6 +268,17 @@ class _BuilderScreenState extends State<BuilderScreen> {
                             active: _sortBy == s[0],
                             ascending: _sortBy == s[0] && _sortAsc)),
                     ]))),  // PopupMenuButton + Theme
+              const SizedBox(width: 6),
+              SearchToggleBtn(
+                isOpen:   _searchOpen,
+                hasQuery: _search.isNotEmpty,
+                onTap: () {
+                  setState(() {
+                    _searchOpen = !_searchOpen;
+                    if (!_searchOpen) { _search = ''; _searchCtrl.clear(); }
+                  });
+                  if (_searchOpen) _searchFocus.requestFocus();
+                }),
             ]))),       // Row + Container + SizedBox
 
       AnimatedContainer(
@@ -311,6 +294,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
             hintText:   'Search units…',
             prefixIcon: const Icon(Icons.search, color: AppColors.grey, size: 18),
             isDense: true,
+            clearable: true,
             contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
             onChanged: (v) => setState(() => _search = v)))),
 
@@ -359,7 +343,24 @@ class _BuilderScreenState extends State<BuilderScreen> {
       onAdd: () {
         final gu = GameDataService.toGameUnit(uid);
         if (gu == null) return;
+        final wasOver = army.isOverLimit;
         army.addUnit(gu);
+        if (!wasOver && army.isOverLimit) {
+          final over = army.totalPoints - army.limit;
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(SnackBar(
+              duration: const Duration(seconds: 4),
+              backgroundColor: const Color(0xFF1A1612),
+              content: Row(children: [
+                const Icon(Icons.warning_amber_rounded,
+                  color: Colors.red, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'Point limit exceeded by $over pts',
+                  style: GoogleFonts.cinzel(color: Colors.red, fontSize: 12)),
+              ])));
+        }
       });
   }
 
@@ -435,9 +436,6 @@ class _BuilderScreenState extends State<BuilderScreen> {
               Wrap(alignment: WrapAlignment.end, spacing: 6, runSpacing: 6,
                 children: [
                   _loadStyleBtn('New Cohort', () => _addGroupDialog(army)),
-                  PressBtn(
-                    label: _saving ? 'Saving…' : _saved ? 'Saved' : 'Save',
-                    onTap: _save),
                 ]),
             ])),
           Divider(height: 1, color: gold.withValues(alpha: 0.15)),
@@ -482,14 +480,14 @@ class _BuilderScreenState extends State<BuilderScreen> {
     final isUserUnit = GameDataService.userUnits.any((u) => u['id'] == unit.unit.id);
 
     void showPremiumMsg() {
-      showAetherraDialog(context,
+      showAetherraSheet(context,
         title: 'Premium Required',
-        content: Text(
+        body: Text(
           'Photo, Lore and Background Color are only available with a Premium subscription.',
           style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
         actions: [
-          aDialogBtn('Cancel', grey, () => Navigator.of(context).pop()),
-          aDialogBtn('Upgrade', gold, () {
+          SheetAction('Cancel',  grey, () => Navigator.of(context).pop(), outlined: true),
+          SheetAction('Upgrade', gold, () {
             Navigator.of(context).pop();
             Navigator.push(context,
               MaterialPageRoute(builder: (_) => const MyFactionsScreen()));
@@ -766,7 +764,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
   Future<String?> _pickPhoto() => pickAndCropPhoto(context);
 
   Widget _loadStyleBtn(String label, VoidCallback onTap) =>
-    PressBtn(label: label, onTap: onTap, outlined: true);
+    PressBtn(label: label, onTap: onTap);
 
   // Group header widget
   Widget _groupHeader(String name, ArmyState army, {bool isDragOver = false}) {
@@ -820,18 +818,37 @@ class _BuilderScreenState extends State<BuilderScreen> {
 
   void _addGroupDialog(ArmyState army) {
     final ctrl = TextEditingController();
-    showAetherraDialog(context,
+    showAetherraSheet(context,
       title: 'New Cohort',
-      content: AetherraTextField(
+      body: AetherraTextField(
         controller: ctrl,
         autofocus: true,
         hintText: 'Cohort name…'),
       actions: [
-        aDialogBtn('Cancel', grey, () => Navigator.pop(context)),
-        aDialogBtn('Add', gold, () {
+        SheetAction('Cancel', grey, () => Navigator.pop(context), outlined: true),
+        SheetAction('Add', gold, () {
           army.addGroup(ctrl.text.trim());
           Navigator.pop(context);
         }),
+      ]);
+  }
+
+  void _showExitSheet() {
+    showAetherraSheet<void>(context,
+      title: 'Leave Builder?',
+      body: Text('Exit without saving, or save your army first.',
+        style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
+      actions: [
+        SheetAction('Cancel',      grey, () => Navigator.pop(context), outlined: true),
+        SheetAction('Exit',        grey, () {
+          Navigator.pop(context);
+          if (widget.showBack) {
+            Navigator.of(context).pop();
+          } else {
+            Navigator.of(context).popUntil((r) => r.isFirst);
+          }
+        }, outlined: true),
+        SheetAction('Save & Exit', gold, () { Navigator.pop(context); _save(); }),
       ]);
   }
 
@@ -839,15 +856,18 @@ class _BuilderScreenState extends State<BuilderScreen> {
     final army = context.read<ArmyState>();
     final name = army.name.trim();
     if (name.isEmpty || _saving) return;
-    setState(() { _saving = true; _saved = false; });
+    setState(() => _saving = true);
     try {
       final id = await ArmyService.save(army, name, army.listId);
       if (id != null && mounted) {
         army.listId = id;
-        setState(() { _saving = false; _saved = true; });
-        Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) setState(() => _saved = false);
-        });
+        setState(() => _saving = false);
+        if (widget.showBack) {
+          Navigator.of(context).pop();
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const ArmyViewScreen()));
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _saving = false);

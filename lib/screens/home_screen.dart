@@ -77,11 +77,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                               backgroundColor: AppColors.dark,
                               content: Text('Sign out failed. Please try again.',
-                                style: GoogleFonts.cinzel(color: Colors.red.shade300))));
+                                style: GoogleFonts.cinzel(color: Colors.red))));
                           }
                         }
                       },
-                      child: _PopupHoverItem(label: 'Sign Out', color: Colors.red.shade300)),
+                      child: _PopupHoverItem(label: 'Sign Out', color: Colors.red)),
                   ],
                   child: Icon(Icons.settings_outlined,
                     color: _gearHovered ? gold : gold.withValues(alpha: 0.5),
@@ -95,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 32),
 
             // Decorative line
-            Container(height: 1, width: 48, color: gold.withValues(alpha: 0.5)),
+            Container(height: 1, width: 48, color: gold.withValues(alpha: 0.35)),
             const SizedBox(height: 16),
 
             // Title

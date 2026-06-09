@@ -2,11 +2,15 @@
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter/material.dart';
 import '../services/bg_remover.dart';
 import '../widgets/photo_crop_dialog.dart';
 import '../widgets/unit_card.dart';
+import '../widgets/condition_badges.dart';
 import '../widgets/nav_btn.dart';
+import '../widgets/action_log_sheet.dart';
+import '../widgets/d20_icon.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../game/models/game_state.dart';
@@ -37,71 +41,6 @@ class GameScreen extends StatelessWidget {
   static const gold  = AppColors.gold;
         static const grey  = AppColors.grey;
 
-  // ── Leave-game dialogs ────────────────────────────────────────────────────
-
-  static Future<void> _showSaveAndExitDialog(BuildContext context, GameNotifier game) async {
-    final ctrl = TextEditingController(text: game.state?.armyName ?? 'Game Save');
-    if (game.isSaved) {
-      await showAetherraDialogRaw(context, aetherraDialogContainer(
-        title: 'Leave Game?',
-        content: Text(
-          '"${game.state?.saveName}" is saved automatically.',
-          style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13, height: 1.5)),
-        actions: [
-          aDialogBtn('Cancel',      AppColors.grey, () => Navigator.pop(context)),
-          aDialogBtn('Save as New', AppColors.gold, () async {
-            Navigator.pop(context);
-            await _showSaveAndExitNewDialog(context, game);
-          }),
-          aDialogBtn('Go Back', AppColors.gold, () async {
-            Navigator.pop(context);
-            await game.flushAutoSave();
-            _GameGroupSectionState.clearState();
-            game.endGame();
-            if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-          }),
-        ]));
-    } else {
-      await showAetherraDialogRaw(context, aetherraDialogContainer(
-        title: 'Save & Exit',
-        content: AetherraTextField(controller: ctrl, hintText: 'Save name…'),
-        actions: [
-          aDialogBtn('Cancel',     AppColors.grey, () => Navigator.pop(context)),
-          aDialogBtn('Save & Exit', AppColors.gold, () async {
-            Navigator.pop(context);
-            final ok = await game.saveGame(ctrl.text.trim());
-            if (context.mounted && ok) {
-              _GameGroupSectionState.clearState();
-              game.endGame();
-              Navigator.of(context).popUntil((r) => r.isFirst);
-            }
-          }),
-        ]));
-    }
-  }
-
-  static Future<void> _showSaveAndExitNewDialog(BuildContext context, GameNotifier game) async {
-    final ctrl = TextEditingController(text: game.state?.armyName ?? 'Game Save');
-    await showAetherraDialogRaw(context, aetherraDialogContainer(
-      title: 'New Save & Exit',
-      content: AetherraTextField(controller: ctrl, hintText: 'New save name…'),
-      actions: [
-        aDialogBtn('Cancel',      AppColors.grey, () => Navigator.pop(context)),
-        aDialogBtn('Save & Exit', AppColors.gold, () async {
-          final name = ctrl.text.trim();
-          if (name.isEmpty) return;
-          game.state?.saveId = null;
-          Navigator.pop(context);
-          final ok = await game.saveGame(name);
-          if (context.mounted && ok) {
-            _GameGroupSectionState.clearState();
-            game.endGame();
-            Navigator.of(context).popUntil((r) => r.isFirst);
-          }
-        }),
-      ]));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<GameNotifier>(builder: (ctx, game, _) {
@@ -121,45 +60,30 @@ class GameScreen extends StatelessWidget {
         appBar: AppBar(
           leadingWidth: 48,
           leading: NavBtn(icon: Icons.home_outlined, onPressed: () {
-              if (game.isSaved) {
-                showAetherraDialogRaw(ctx, aetherraDialogContainer(
-                  title: 'Leave Game?',
-                  content: Text(
-                    '"${game.state?.saveName}" is saved automatically.',
-                    style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
-                  actions: [
-                    aDialogBtn('Cancel',      grey, () => Navigator.pop(ctx)),
-                    aDialogBtn('Save as New', gold, () async {
-                      Navigator.pop(ctx);
-                      await _showSaveAndExitNewDialog(ctx, game);
-                    }),
-                    aDialogBtn('Go Back', gold, () async {
-                      Navigator.pop(ctx);
+              final ctrl = TextEditingController(
+                text: game.state?.saveName ?? game.state?.armyName ?? 'Game Save');
+              showAetherraSheet(ctx,
+                title: 'Leave Battle?',
+                body: game.isSaved
+                  ? Text(
+                      '"${game.state?.saveName}" is saved automatically.',
+                      style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5))
+                  : AetherraTextField(controller: ctrl, hintText: 'Save name…'),
+                actions: [
+                  SheetAction('Cancel', grey, () => Navigator.pop(ctx), outlined: true),
+                  SheetAction('Save & Exit', gold, () async {
+                    Navigator.pop(ctx);
+                    if (game.isSaved) {
                       await game.flushAutoSave();
-                      _GameGroupSectionState.clearState();
-                      game.endGame();
-                      if (ctx.mounted) Navigator.of(ctx).popUntil((r) => r.isFirst);
-                    }),
-                  ]));
-              } else {
-                showAetherraDialogRaw(ctx, aetherraDialogContainer(
-                  title: 'Leave Game?',
-                  content: Text('Save the current game before leaving?',
-                    style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
-                  actions: [
-                    aDialogBtn('Cancel',  grey,             () => Navigator.pop(ctx)),
-                    aDialogBtn('Discard', Colors.red.shade400, () {
-                      Navigator.pop(ctx);
-                      _GameGroupSectionState.clearState();
-                      game.endGame();
-                      Navigator.of(ctx).popUntil((r) => r.isFirst);
-                    }),
-                    aDialogBtn('Save & Exit', gold, () async {
-                      Navigator.pop(ctx);
-                      await _showSaveAndExitDialog(ctx, game);
-                    }),
-                  ]));
-              }
+                    } else {
+                      final ok = await game.saveGame(ctrl.text.trim());
+                      if (!ok || !ctx.mounted) return;
+                    }
+                    _GameGroupSectionState.clearState();
+                    game.endGame();
+                    if (ctx.mounted) Navigator.of(ctx).popUntil((r) => r.isFirst);
+                  }),
+                ]);
             }),
           title: Text(gs.saveName ?? gs.armyName ?? 'Game', style: GoogleFonts.cinzel(
             color: gold, fontSize: 14, letterSpacing: 1)),
@@ -171,6 +95,10 @@ class GameScreen extends StatelessWidget {
                 child: SizedBox(width: 14, height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5, color: gold))),
+            // Action log button
+            NavBtn(
+              icon: Icons.history,
+              onPressed: () => _showActionLog(ctx, game)),
             // Round indicator
             Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -320,7 +248,7 @@ class GameScreen extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       _GlowIcon(icon: Icons.remove, color: const Color(0xFFC8A0E0),
-        size: 18, onTap: () => game.adjustCP(-1)),
+        size: 18, onTap: () { HapticFeedback.selectionClick(); game.adjustCP(-1); }),
       const SizedBox(width: 10),
       Column(mainAxisSize: MainAxisSize.min, children: [
         Text('${gs.commandPoints}',
@@ -330,12 +258,15 @@ class GameScreen extends StatelessWidget {
       ]),
       const SizedBox(width: 10),
       _GlowIcon(icon: Icons.add, color: const Color(0xFFC8A0E0),
-        size: 18, onTap: () => game.adjustCP(1)),
+        size: 18, onTap: () { HapticFeedback.selectionClick(); game.adjustCP(1); }),
     ]));
 
   Widget _actionBtn(String label, IconData icon, VoidCallback onTap,
       {Color color = AppColors.grey}) =>
     _ActionBtn(label: label, icon: icon, onTap: onTap, color: color);
+
+  static void _showActionLog(BuildContext ctx, GameNotifier game) =>
+      showActionLogSheet(ctx, game.actionLog);
 
   static Future<void> _showEndGameSummary(BuildContext ctx, GameNotifier game) async {
     final gs = game.state!;
@@ -419,14 +350,6 @@ class _TokenBagWidget extends StatelessWidget {
         Row(children: [
           Text('TOKEN BAG', style: GoogleFonts.cinzel(
             color: gold.withValues(alpha: 0.85), fontSize: 13, letterSpacing: 2, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(
-              color: gold.withValues(alpha: 0.1),
-              border: Border.all(color: gold.withValues(alpha: 0.3))),
-            child: Text('${playerRemaining + enemyRemaining} left',
-              style: GoogleFonts.cinzel(color: gold.withValues(alpha: 0.6), fontSize: 10))),
           const Spacer(),
           if (last != null) Row(children: [
             Text(last.color == 'player' ? 'Your turn' : 'Opponent turn',
@@ -438,15 +361,16 @@ class _TokenBagWidget extends StatelessWidget {
         const SizedBox(height: 8),
         Row(children: [
           Expanded(child: _BagBtn(label: 'Random', color: gold,
-            onTap: () => game.drawRandom())),
+            count: playerRemaining + enemyRemaining,
+            onTap: () { HapticFeedback.lightImpact(); game.drawRandom(); })),
           const SizedBox(width: 6),
-          Expanded(child: _BagBtn(label: 'Army', color: playerCol, dotColor: playerCol,
+          Expanded(child: _BagBtn(label: gs.armyName ?? 'Army', color: playerCol, dotColor: playerCol,
             count: playerRemaining,
-            onTap: playerRemaining > 0 ? () => game.drawByColor('player') : null)),
+            onTap: playerRemaining > 0 ? () { HapticFeedback.lightImpact(); game.drawByColor('player'); } : null)),
           const SizedBox(width: 6),
           Expanded(child: _BagBtn(label: 'Opponent', color: enemyCol, dotColor: enemyCol,
             count: enemyRemaining,
-            onTap: enemyRemaining > 0 ? () => game.drawByColor('enemy') : null)),
+            onTap: enemyRemaining > 0 ? () { HapticFeedback.lightImpact(); game.drawByColor('enemy'); } : null)),
           const SizedBox(width: 6),
           Expanded(child: _BagBtn(label: 'Redo', color: grey,
             onTap: bag.lastDrawn != null ? () => game.undoLastDraw() : null)),
@@ -501,15 +425,13 @@ class _UnitCard extends StatelessWidget {
     final conPct         = u.con > 0 ? unit.currentCon / u.con : 0.0;
     const activatedColor = Color(0xFF6B7A8D);
 
-    final bW = eliminated ? 1.0 : activated ? 1.0 : 2.5;
-    final bC = eliminated
-      ? Colors.red.withValues(alpha: 0.6)
-      : activated ? activatedColor.withValues(alpha: 0.7) : gold;
-
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(border: Border.all(color: bC, width: bW)),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: (eliminated ? grey : typeColor(u.type)).withValues(alpha: eliminated ? 0.2 : 0.4),
+          width: 1.5)),
       child: Column(children: [
         UnitCard(
           unit: u,
@@ -518,8 +440,6 @@ class _UnitCard extends StatelessWidget {
           bgColor: unit.armyUnit.bgColor,
           lore: unit.armyUnit.lore,
           dimmed: eliminated,
-          accentColor: eliminated ? Colors.red
-            : activated ? activatedColor : playerCol,
           onEdit: eliminated ? null : () => showGameEditDialog(context, unit, game),
           onAbilityUse: eliminated ? null : (String abilityName) {
             final ab = GameDataService.abilities
@@ -528,6 +448,7 @@ class _UnitCard extends StatelessWidget {
             if (cpCost <= 0) return null;
             return () => game.adjustCP(-cpCost);
           },
+          hideBorder: true,
           actions: const []),
         LinearProgressIndicator(
           value: conPct,
@@ -537,6 +458,14 @@ class _UnitCard extends StatelessWidget {
             : conPct > 0.25 ? const Color(0xFFD4A870)
             : Colors.red),
           minHeight: 3),
+        if (!eliminated)
+          ConditionBadges(
+            conditions: unit.conditions,
+            onToggle: (c) => game.toggleCondition(unit.instanceId, c)),
+        if (!eliminated)
+          _NoteRow(
+            note: unit.note,
+            onEdit: () => _showNoteSheet(context, unit, game)),
         Container(
           color: AppColors.dark,
           padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
@@ -547,7 +476,7 @@ class _UnitCard extends StatelessWidget {
               icon: Icons.remove_circle_outline,
               color: eliminated ? grey.withValues(alpha: 0.3) : Colors.red.withValues(alpha: 0.7),
               size: 22,
-              onTap: eliminated ? () {} : () => game.adjustCon(unit.instanceId, -1)),
+              onTap: eliminated ? () {} : () { HapticFeedback.lightImpact(); game.adjustCon(unit.instanceId, -1); }),
             const SizedBox(width: 8),
             Text('${unit.currentCon}/${u.con}',
               style: GoogleFonts.cinzel(
@@ -560,23 +489,103 @@ class _UnitCard extends StatelessWidget {
               size: 22,
               disabled: unit.currentCon >= u.con,
               onTap: unit.currentCon >= u.con ? () {}
-                : () => game.adjustCon(unit.instanceId, 1)),
+                : () { HapticFeedback.lightImpact(); game.adjustCon(unit.instanceId, 1); }),
             const Spacer(),
             if (!eliminated && !activated)
               _ActivateBtn(
                 label: 'Activate',
                 color: gold,
-                onTap: () => game.activateUnit(unit.instanceId)),
+                onTap: () { HapticFeedback.mediumImpact(); game.activateUnit(unit.instanceId); }),
             if (!eliminated && activated)
               _ActivateBtn(
                 label: 'Ready',
                 color: activatedColor,
-                onTap: () => game.deactivateUnit(unit.instanceId)),
+                onTap: () { HapticFeedback.selectionClick(); game.deactivateUnit(unit.instanceId); }),
           ])),
       ]));
   }
+
+  static void _showNoteSheet(BuildContext ctx, GameUnit unit, GameNotifier game) {
+    final ctrl = TextEditingController(text: unit.note);
+    showModalBottomSheet<void>(
+      context: ctx,
+      isScrollControlled: true,
+      backgroundColor: AppColors.dark,
+      builder: (_) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Center(child: Container(width: 40, height: 4,
+            decoration: BoxDecoration(
+              color: grey.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 14),
+          Text(unit.displayName,
+            style: GoogleFonts.cinzel(
+              color: gold, fontSize: 14, letterSpacing: 0.5)),
+          const SizedBox(height: 14),
+          AetherraTextField(
+            controller: ctrl,
+            hintText: 'Battle notes…',
+            maxLines: 4),
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: () { game.setNote(unit.instanceId, ''); Navigator.pop(ctx); },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: grey,
+                side: BorderSide(color: grey.withValues(alpha: 0.4)),
+                shape: const RoundedRectangleBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 13)),
+              child: Text('Clear', style: GoogleFonts.cinzel(fontSize: 13)))),
+            const SizedBox(width: 10),
+            Expanded(child: ElevatedButton(
+              onPressed: () { game.setNote(unit.instanceId, ctrl.text.trim()); Navigator.pop(ctx); },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gold,
+                foregroundColor: AppColors.dark,
+                shape: const RoundedRectangleBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 13)),
+              child: Text('Save', style: GoogleFonts.cinzel(
+                fontSize: 13, fontWeight: FontWeight.w600)))),
+          ]),
+        ])));
+  }
 }
 
+// ── Note row ─────────────────────────────────────────────────────────────────
+class _NoteRow extends StatelessWidget {
+  final String note;
+  final VoidCallback onEdit;
+  const _NoteRow({required this.note, required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasNote = note.isNotEmpty;
+    return GestureDetector(
+      onTap: onEdit,
+      child: Container(
+        color: AppColors.dark,
+        padding: const EdgeInsets.fromLTRB(10, 3, 10, 3),
+        child: Row(children: [
+          Icon(
+            hasNote ? Icons.sticky_note_2_outlined : Icons.add,
+            size: 12,
+            color: AppColors.grey.withValues(alpha: hasNote ? 0.55 : 0.35)),
+          const SizedBox(width: 6),
+          Expanded(child: Text(
+            hasNote ? note : 'Add note…',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.cinzel(
+              color: hasNote
+                  ? AppColors.grey.withValues(alpha: 0.7)
+                  : AppColors.grey.withValues(alpha: 0.3),
+              fontSize: 10,
+              fontStyle: hasNote ? FontStyle.normal : FontStyle.italic))),
+        ])));
+  }
+}
 
 // ── Collapsible group section ─────────────────────────────────────────────
 class _GameGroupSection extends StatefulWidget {
@@ -914,6 +923,7 @@ class _GameDndOuterState extends State<_GameDndOuter> {
   void drop(BuildContext context) {
     final u = _dragging;
     if (u != null && _insertAt != null && _insertGrp != null) {
+      HapticFeedback.mediumImpact();
       final units = widget.game.state!.units;
       final from  = units.indexOf(u);
       if (from >= 0) {
@@ -921,7 +931,8 @@ class _GameDndOuterState extends State<_GameDndOuter> {
         final newUnit = GameUnit(
           instanceId: u.instanceId, armyUnit: u.armyUnit,
           currentCon: u.currentCon, activated: u.activated,
-          expanded: u.expanded, groupName: _insertGrp!);
+          expanded: u.expanded, groupName: _insertGrp!,
+          conditions: List.from(u.conditions));
         units.removeAt(from);
         final to = (_insertAt! > from ? _insertAt! - 1 : _insertAt!)
           .clamp(0, units.length);
@@ -1150,12 +1161,14 @@ void showGameEditDialog(BuildContext context, GameUnit unit, GameNotifier game) 
                     }
                   } catch (e) {
                     setSt(() => removingBg = false);
-                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
                       backgroundColor: AppColors.dark,
                       content: Text('Background removal failed: $e',
                         style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
                       duration: const Duration(seconds: 4),
                     ));
+                    }
                   }
                 },
                 icon: const Icon(Icons.auto_fix_high_outlined, color: gold, size: 15),
@@ -1248,9 +1261,9 @@ class _DiceButtonState extends State<_DiceButton>
   static const gold = AppColors.gold;
   static const grey = AppColors.grey;
 
-  int _diceCount  = 1;   // how many dice to roll
-  int? _lastResult;      // highest result
-  List<int> _rolls = []; // all individual rolls
+  int _diceCount  = 1;
+  int? _lastResult;
+  List<int> _rolls = [];
   bool _rolling    = false;
   late AnimationController _ctrl;
   late Animation<double> _shake;
@@ -1272,8 +1285,9 @@ class _DiceButtonState extends State<_DiceButton>
 
   void _roll() async {
     if (_rolling) return;
+    HapticFeedback.heavyImpact();
     final rng   = math.Random();
-    final rolls = List.generate(_diceCount, (_) => rng.nextInt(20) + 1);
+    final rolls = List.generate(_diceCount, (_) => rng.nextInt(10) + 1);
     final best  = rolls.reduce((a, b) => a > b ? a : b);
     setState(() { _rolling = true; _lastResult = null; _rolls = []; });
     _ctrl.forward(from: 0);
@@ -1283,7 +1297,7 @@ class _DiceButtonState extends State<_DiceButton>
     // Show overlay animation
     final overlay = Overlay.of(context);
     final entry   = OverlayEntry(builder: (_) =>
-      _DiceRollOverlay(diceCount: _diceCount, results: rolls, best: best));
+      _DiceRollOverlay(diceCount: _diceCount, diceType: 10, results: rolls, best: best));
     overlay.insert(entry);
 
     await Future.delayed(const Duration(milliseconds: 2900));
@@ -1293,12 +1307,12 @@ class _DiceButtonState extends State<_DiceButton>
 
   void _showPicker() {
     int? hoveredN;
-    showAetherraDialog(context,
-      title: 'How many d20?',
-      content: StatefulBuilder(builder: (ctx, setSt) => Column(
+    showAetherraSheet<void>(context,
+      title: 'How many d10?',
+      body: StatefulBuilder(builder: (ctx, setSt) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Roll $_diceCount dice — keep highest',
+          Text('Roll $_diceCount × d10 — keep highest',
             style: GoogleFonts.cinzel(color: grey, fontSize: 11)),
           const SizedBox(height: 16),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -1329,10 +1343,39 @@ class _DiceButtonState extends State<_DiceButton>
                           : grey,
                         fontSize: 16, fontWeight: FontWeight.bold)))))),
           ]),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            for (final n in [6, 7, 8, 9, 10])
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                onEnter: (_) => setSt(() => hoveredN = n),
+                onExit:  (_) => setSt(() => hoveredN = null),
+                child: GestureDetector(
+                  onTap: () => setSt(() => _diceCount = n),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    width: 40, height: 40,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: _diceCount == n
+                        ? gold.withValues(alpha: 0.2)
+                        : hoveredN == n ? gold.withValues(alpha: 0.08) : Colors.transparent,
+                      border: Border.all(
+                        color: _diceCount == n ? gold
+                          : hoveredN == n ? gold.withValues(alpha: 0.6)
+                          : grey.withValues(alpha: 0.3),
+                        width: _diceCount == n ? 1.5 : 1)),
+                    child: Center(child: Text('$n',
+                      style: GoogleFonts.cinzel(
+                        color: _diceCount == n ? gold
+                          : hoveredN == n ? gold.withValues(alpha: 0.85)
+                          : grey,
+                        fontSize: 16, fontWeight: FontWeight.bold)))))),
+          ]),
         ])),
       actions: [
-        aDialogBtn('Cancel', grey, () => Navigator.pop(context)),
-        aDialogBtn('Roll', gold, () { Navigator.pop(context); _roll(); }),
+        SheetAction('Cancel', grey, () => Navigator.pop(context), outlined: true),
+        SheetAction('Roll',   gold, () { Navigator.pop(context); _roll(); }),
       ]);
   }
 
@@ -1361,8 +1404,8 @@ class _DiceButtonState extends State<_DiceButton>
                     opacity: _hovered ? 1.0 : 0.7,
                     duration: const Duration(milliseconds: 100),
                     child: _rolling
-                      ? const _D20Icon(number: null, gold: gold)
-                      : _D20Icon(number: _lastResult, gold: gold))))),
+                      ? const D20Icon(color: gold)
+                      : D20Icon(number: _lastResult, color: gold))))),
             // Numbers only after rolling
             if (_rolls.isNotEmpty)
               Positioned(left: 0, right: 0, bottom: 1,
@@ -1375,98 +1418,15 @@ class _DiceButtonState extends State<_DiceButton>
   }
 }
 
-class _D20Icon extends StatelessWidget {
-  final int? number;
-  final Color gold;
-  const _D20Icon({required this.number, required this.gold});
-
-  @override Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size(28, 28),
-      painter: _D20Painter(gold: gold, number: number));
-  }
-}
-
-class _D20Painter extends CustomPainter {
-  final Color gold;
-  final int? number;
-  const _D20Painter({required this.gold, this.number});
-
-  @override void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r  = size.width * 0.45;
-
-    // Draw icosahedron (simplified d20 — pentagon outline)
-    final path = Path();
-    const sides = 6;
-    for (int i = 0; i < sides; i++) {
-      final angle = (i * 2 * math.pi / sides) - math.pi / 2;
-      final x = cx + r * math.cos(angle);
-      final y = cy + r * math.sin(angle);
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-
-    // Inner lines for d20 look
-    final inner = r * 0.55;
-    for (int i = 0; i < sides; i++) {
-      final a1 = (i * 2 * math.pi / sides) - math.pi / 2;
-      final a2 = ((i + 1) * 2 * math.pi / sides) - math.pi / 2;
-      canvas.drawLine(
-        Offset(cx + r * math.cos(a1), cy + r * math.sin(a1)),
-        Offset(cx, cy),
-        Paint()..color = gold.withValues(alpha: 0.25)..strokeWidth = 0.8
-          ..style = PaintingStyle.stroke);
-      canvas.drawLine(
-        Offset(cx + r * math.cos(a1), cy + r * math.sin(a1)),
-        Offset(cx + inner * math.cos(a2), cy + inner * math.sin(a2)),
-        Paint()..color = gold.withValues(alpha: 0.15)..strokeWidth = 0.6
-          ..style = PaintingStyle.stroke);
-    }
-
-    canvas.drawPath(path,
-      Paint()..color = gold.withValues(alpha: 0.15)..style = PaintingStyle.fill);
-    canvas.drawPath(path,
-      Paint()..color = gold..strokeWidth = 1.5..style = PaintingStyle.stroke);
-
-    // Number in center
-    if (number != null) {
-      final tp = TextPainter(
-        text: TextSpan(text: '$number',
-          style: TextStyle(color: gold, fontSize: number! >= 10 ? 8.5 : 10,
-            fontWeight: FontWeight.bold)),
-        textDirection: TextDirection.ltr);
-      tp.layout();
-      tp.paint(canvas,
-        Offset(cx - tp.width / 2, cy - tp.height / 2));
-    } else {
-      // d20 label when no roll
-      final tp = TextPainter(
-        text: TextSpan(text: 'd20',
-          style: TextStyle(color: gold.withValues(alpha: 0.7), fontSize: 7,
-            fontWeight: FontWeight.bold)),
-        textDirection: TextDirection.ltr);
-      tp.layout();
-      tp.paint(canvas, Offset(cx - tp.width / 2, cy - tp.height / 2));
-    }
-  }
-
-  @override bool shouldRepaint(_D20Painter o) =>
-    o.number != number || o.gold != gold;
-}
 
 // ── Dice Roll Overlay Animation ──────────────────────────────────────────────
 class _DiceRollOverlay extends StatefulWidget {
   final int diceCount;
+  final int diceType;
   final List<int> results;
   final int best;
-  const _DiceRollOverlay({required this.diceCount, required this.results,
-    required this.best});
+  const _DiceRollOverlay({required this.diceCount, required this.diceType,
+    required this.results, required this.best});
   @override State<_DiceRollOverlay> createState() => _DiceRollOverlayState();
 }
 
@@ -1547,7 +1507,7 @@ class _DiceRollOverlayState extends State<_DiceRollOverlay>
               ? math.sin((t - 0.90) / 0.10 * math.pi * 5) *
                 (1 - (t - 0.90) / 0.10) * 0.05 : 0.0;
             final displayVal = t < 0.87
-              ? (_rng.nextInt(20) + 1) : d.result;
+              ? (_rng.nextInt(widget.diceType) + 1) : d.result;
 
             return Positioned(
               left: x - dieSize / 2, top: y - dieSize / 2,
@@ -1836,7 +1796,6 @@ class _ActivateBtnState extends State<_ActivateBtn> {
               fontSize: 11, fontWeight: FontWeight.w600)))));
 }
 
-// ── Sort-style action button (Next Round / Ready All) ─────────────────────
 class _ActionBtn extends StatefulWidget {
   final String label;
   final IconData icon;
@@ -1864,11 +1823,7 @@ class _ActionBtnState extends State<_ActionBtn> {
           transformAlignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
-            color: _hovered ? widget.color.withValues(alpha: 0.1) : Colors.transparent,
-            border: Border.all(
-              color: _hovered || _pressed
-                ? widget.color
-                : widget.color.withValues(alpha: 0.4))),
+            color: _hovered ? widget.color.withValues(alpha: 0.1) : Colors.transparent),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(widget.icon,
               color: _hovered || _pressed ? widget.color : widget.color.withValues(alpha: 0.6),

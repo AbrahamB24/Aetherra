@@ -80,3 +80,84 @@ Widget aDialogBtn(String label, Color color, VoidCallback? onPressed) =>
         s.contains(WidgetState.hovered) ? color : color.withValues(alpha: 0.75))),
     onPressed: onPressed,
     child: Text(label, style: GoogleFonts.cinzel()));
+
+// ── Confirmation bottom sheet ─────────────────────────────────────────────────
+
+/// One button in a [showAetherraSheet] bottom sheet.
+class SheetAction {
+  final String        label;
+  final Color         color;
+  final VoidCallback? onTap;
+  final bool          outlined;
+  const SheetAction(this.label, this.color, this.onTap, {this.outlined = false});
+}
+
+/// Show a confirmation bottom sheet in the same style as the edit-unit sheet:
+/// drag handle → Cinzel title → body → full-width (or side-by-side) buttons.
+Future<T?> showAetherraSheet<T>(
+  BuildContext context, {
+  required String       title,
+  required Widget       body,
+  List<SheetAction>     actions       = const [],
+  bool                  isDismissible = true,
+  Color?                titleColor,
+}) {
+  final safeBottom = MediaQuery.of(context).padding.bottom;
+  return showModalBottomSheet<T>(
+    context:            context,
+    isScrollControlled: true,
+    isDismissible:      isDismissible,
+    backgroundColor:    AppColors.dark,
+    builder: (ctx) {
+      final kb = MediaQuery.of(ctx).viewInsets.bottom;
+      return Padding(
+        padding: EdgeInsets.fromLTRB(20, 16, 20, safeBottom + kb + 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.grey.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 16),
+            Text(title, style: GoogleFonts.cinzel(
+              color: titleColor ?? AppColors.gold, fontSize: 17, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            body,
+            if (actions.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              if (actions.length == 2)
+                Row(children: [
+                  Expanded(child: _sheetBtn(actions[0])),
+                  const SizedBox(width: 12),
+                  Expanded(child: _sheetBtn(actions[1])),
+                ])
+              else
+                ...actions.map((a) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: SizedBox(width: double.infinity, child: _sheetBtn(a)))),
+            ],
+          ]));
+    });
+}
+
+Widget _sheetBtn(SheetAction a) => a.outlined
+  ? OutlinedButton(
+      onPressed: a.onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: a.color,
+        side: BorderSide(color: a.color.withValues(alpha: 0.4)),
+        shape: const RoundedRectangleBorder(),
+        padding: const EdgeInsets.symmetric(vertical: 14)),
+      child: Text(a.label, style: GoogleFonts.cinzel(fontSize: 14)))
+  : ElevatedButton(
+      onPressed: a.onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: a.color,
+        foregroundColor: a.color == AppColors.gold ? AppColors.dark : Colors.white,
+        shape: const RoundedRectangleBorder(),
+        padding: const EdgeInsets.symmetric(vertical: 14)),
+      child: Text(a.label, style: GoogleFonts.cinzel(
+        fontSize: 14, fontWeight: FontWeight.w600)));

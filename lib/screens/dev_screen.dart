@@ -13,6 +13,8 @@ import '../widgets/photo_crop_dialog.dart';
 import '../widgets/filter_widgets.dart';
 import '../widgets/unit_card.dart';
 import '../widgets/aetherra_text_field.dart';
+import '../widgets/ability_picker_sheet.dart';
+import '../widgets/aetherra_dialog.dart';
 import '../app_theme.dart';
 import 'faction_unit_picker_screen.dart';
 
@@ -370,6 +372,7 @@ class _DevScreenState extends State<DevScreen>
           hintText: 'Search units…',
           prefixIcon: const Icon(Icons.search, color: grey, size: 18),
           isDense: true,
+          clearable: true,
           contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
           onChanged: (v) => setState(() => _unitSearch = v)))),
   ]);
@@ -474,6 +477,7 @@ class _DevScreenState extends State<DevScreen>
               hintStyle: TextStyle(color: grey.withValues(alpha: 0.6)),
               prefixIcon: const Icon(Icons.search, color: grey, size: 18),
               isDense: true,
+              clearable: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               onChanged: (v) => setState(() => _facSearch = v)))),
         Expanded(child: Stack(children: [
@@ -581,6 +585,7 @@ class _DevScreenState extends State<DevScreen>
               hintText: 'Search abilities…',
               prefixIcon: const Icon(Icons.search, color: grey, size: 18),
               isDense: true,
+              clearable: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
               onChanged: (v) => setState(() => _abSearch = v)))),
         Expanded(child: Stack(children: [
@@ -634,7 +639,7 @@ class _DevScreenState extends State<DevScreen>
             onTap: () => _openAbilityForm(a)),
           CrudActionBtn(
             icon: Icons.delete_outline,
-            color: Colors.red.shade300.withValues(alpha: 0.8),
+            color: Colors.red.withValues(alpha: 0.8),
             onTap: () => _deleteAbility(name, wasBuiltin: nameIsBuiltin)),
         ])));
   }
@@ -841,13 +846,12 @@ class _DevScreenState extends State<DevScreen>
     await showModalBottomSheet(
       context: context, isScrollControlled: true, backgroundColor: AppColors.dark,
       builder: (_) => StatefulBuilder(builder: (ctx, setS) {
-        final cost     = calcCost();
-        final typeAbs  = _allAbilities
+        final cost        = calcCost();
+        final typeAbsData = _allAbilities
           .where((a) {
             final types = a['types'] as List;
             return types.isEmpty || types.contains(selType);
           })
-          .map((a) => a['name'] as String)
           .toList();
 
         return DraggableScrollableSheet(
@@ -1048,41 +1052,6 @@ class _DevScreenState extends State<DevScreen>
                   activeThumbColor: gold),
                 Text(isUniq ? 'Yes' : 'No', style: const TextStyle(color: grey, fontSize: 15)),
               ]),
-              const SizedBox(height: 10),
-              _lbl('Abilities (tap to select)'),
-              const SizedBox(height: 6),
-              Wrap(spacing: 6, runSpacing: 6,
-                children: typeAbs.map((n) {
-                  final on  = selAbs.contains(n);
-                  final ab  = _allAbilities.where((a) => a['name'] == n).firstOrNull;
-                  final abCost   = ab != null ? (ab['cost']    as int? ?? 0) : (_allAbCosts[n] ?? 0);
-                  final abCpCost = ab != null ? (ab['cp_cost'] as int? ?? 0) : 0;
-                  final Color c  = abCost < 0
-                      ? const Color(0xFFCF6679)
-                      : abCpCost > 0 ? gold : grey;
-                  final desc = ab?['description'] as String? ?? '';
-                  final chip = GestureDetector(
-                    onTap: () => setS(() {
-                      if (on) { selAbs.remove(n); } else { selAbs.add(n); }
-                    }),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: on ? c.withValues(alpha: 0.15) : AppColors.dark,
-                        border: Border.all(color: on ? c : c.withValues(alpha: 0.35))),
-                      child: Text(n, style: GoogleFonts.cinzel(
-                        fontSize: 13, color: on ? c : c.withValues(alpha: 0.6)))));
-                  return desc.isEmpty ? chip : Tooltip(
-                    message: desc,
-                    waitDuration: const Duration(milliseconds: 500),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1A14),
-                      border: Border.all(color: gold.withValues(alpha: 0.35))),
-                    textStyle: GoogleFonts.cinzel(
-                      color: grey, fontSize: 12, height: 1.5),
-                    preferBelow: false,
-                    child: chip);
-                }).toList()),
               const SizedBox(height: 14),
               RosterCard(
                 unitData: {
@@ -1100,6 +1069,61 @@ class _DevScreenState extends State<DevScreen>
                   'bg_color':  selBgColor,
                   'lore':      loreCtrl.text.trim().isNotEmpty ? loreCtrl.text.trim() : null,
                 }),
+              const SizedBox(height: 10),
+              SizedBox(width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final newSel = await showModalBottomSheet<List<String>>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: AppColors.dark,
+                      builder: (_) => AbilityPickerSheet(
+                        allAbilities: typeAbsData,
+                        initialSelected: selAbs,
+                        unitDataBuilder: (abs) => {
+                          'name':      nameCtrl.text.trim().isEmpty ? '—' : nameCtrl.text.trim(),
+                          'type':      selType,
+                          'atk':       int.tryParse(atkCtrl.text) ?? 0,
+                          'def_val':   int.tryParse(defCtrl.text) ?? 0,
+                          'rng':       int.tryParse(rngCtrl.text) ?? 0,
+                          'mob':       int.tryParse(mobCtrl.text) ?? 0,
+                          'con_val':   int.tryParse(conCtrl.text) ?? 0,
+                          'cp':        int.tryParse(cpCtrl.text) ?? 0,
+                          'cost':      CostConfig.calcCost(
+                            a: int.tryParse(atkCtrl.text) ?? 0,
+                            d: int.tryParse(defCtrl.text) ?? 0,
+                            s: int.tryParse(rngCtrl.text) ?? 0,
+                            m: int.tryParse(mobCtrl.text) ?? 6,
+                            str: int.tryParse(conCtrl.text) ?? 1,
+                            type: selType,
+                            cpVal: int.tryParse(cpCtrl.text) ?? 0,
+                            abilities: abs,
+                            allAbilityCosts: _allAbCosts),
+                          'abilities': abs,
+                          'image_b64': imageB64,
+                          'bg_color':  selBgColor,
+                          'lore':      loreCtrl.text.trim().isNotEmpty ? loreCtrl.text.trim() : null,
+                        },
+                      ),
+                    );
+                    if (newSel != null) {
+                      setS(() {
+                        selAbs.clear();
+                        selAbs.addAll(newSel);
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.tune, size: 16),
+                  label: Text(selAbs.isEmpty
+                    ? 'Manage Abilities'
+                    : 'Manage Abilities (${selAbs.length})'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.grey,
+                    side: BorderSide(color: AppColors.gold.withValues(alpha: 0.3)),
+                    shape: const RoundedRectangleBorder(),
+                    textStyle: GoogleFonts.cinzel(fontSize: 13),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                )),
               const SizedBox(height: 2),
               Text('Formula: (sum × conMult) ÷ ${CostConfig.formulaDivisor}',
                 style: TextStyle(color: grey.withValues(alpha: 0.45), fontSize: 11)),
@@ -1715,8 +1739,8 @@ class _DevScreenState extends State<DevScreen>
                       label: Text('Delete Ability',
                         style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1)),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red.shade300,
-                        side: BorderSide(color: Colors.red.shade300.withValues(alpha: 0.5)),
+                        foregroundColor: Colors.red,
+                        side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
                         shape: const RoundedRectangleBorder(),
                         padding: const EdgeInsets.symmetric(vertical: 12)))),
                 ],
@@ -1854,16 +1878,13 @@ class _DevScreenState extends State<DevScreen>
     ]));
 
   Future<bool> _confirm(String msg) async {
-    final ok = await showDialog<bool>(context: context,
-      builder: (_) => AlertDialog(backgroundColor: AppColors.dark,
-        title: Text(msg,
-          style: GoogleFonts.cinzel(color: gold, fontSize: 16)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: GoogleFonts.cinzel(color: grey))),
-          TextButton(onPressed: () => Navigator.pop(context, true),
-            child: Text('Save', style: GoogleFonts.cinzel(color: gold))),
-        ]));
+    final ok = await showAetherraSheet<bool>(context,
+      title: msg,
+      body: const SizedBox.shrink(),
+      actions: [
+        SheetAction('Cancel', grey,               () => Navigator.pop(context, false), outlined: true),
+        SheetAction('Delete', Colors.red, () => Navigator.pop(context, true)),
+      ]);
     return ok ?? false;
   }
 
@@ -1991,7 +2012,7 @@ class _DevFacRowCardState extends State<_DevFacRowCard> {
                                 style: GoogleFonts.cinzel(color: Colors.white, fontSize: 16,
                                   shadows: [const Shadow(color: Colors.black54, blurRadius: 6)])),
                               if (widget.creatorName.isNotEmpty)
-                                Text('by ${widget.creatorName}',
+                                Text(widget.creatorName,
                                   style: GoogleFonts.cinzel(color: Colors.white54, fontSize: 12,
                                     shadows: [const Shadow(color: Colors.black87, blurRadius: 4)])),
                             ])),

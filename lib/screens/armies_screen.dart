@@ -71,10 +71,11 @@ class _ArmiesScreenState extends State<ArmiesScreen> {
     String? errorMsg;
     bool loading = false;
 
-    await showAetherraDialogRaw<void>(context, StatefulBuilder(builder: (ctx, setS) =>
-      aetherraDialogContainer(
-        title: 'Import Army',
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
+    await showAetherraSheet<void>(context,
+      title: 'Import Army',
+      body: StatefulBuilder(builder: (ctx, setS) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           Text('Enter the 6-character share code:',
             style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13)),
           const SizedBox(height: 12),
@@ -113,13 +114,19 @@ class _ArmiesScreenState extends State<ArmiesScreen> {
             const SizedBox(height: 8),
             Text(errorMsg!, style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
           ],
-        ]),
-        actions: [
-          aDialogBtn('Cancel', AppColors.grey, loading ? null : () => Navigator.of(ctx).pop()),
-          loading
-            ? const SizedBox(width: 16, height: 16,
-                child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.gold))
-            : aDialogBtn('Import', AppColors.gold, () async {
+          const SizedBox(height: 20),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: loading ? null : () => Navigator.of(ctx).pop(),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.grey,
+                side: BorderSide(color: AppColors.grey.withValues(alpha: 0.4)),
+                shape: const RoundedRectangleBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: Text('Cancel', style: GoogleFonts.cinzel(fontSize: 14)))),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: loading ? null : () async {
                 final code = codeCtrl.text.trim().toUpperCase();
                 if (code.length != 6) {
                   setS(() => errorMsg = 'Code must be 6 characters.');
@@ -134,9 +141,19 @@ class _ArmiesScreenState extends State<ArmiesScreen> {
                 await ArmyService.importArmy(row);
                 if (ctx.mounted) Navigator.of(ctx).pop();
                 await _load();
-              }),
-        ],
-      )));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.gold,
+                foregroundColor: AppColors.dark,
+                shape: const RoundedRectangleBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: loading
+                ? const SizedBox(width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.dark))
+                : Text('Import', style: GoogleFonts.cinzel(
+                    fontSize: 14, fontWeight: FontWeight.w600)))),
+          ]),
+        ])));
   }
 
   @override
@@ -462,7 +479,7 @@ class _ArmyRowCardState extends State<_ArmyRowCard> {
                                   letterSpacing: 2,
                                   shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
                               if (creatorName != null && creatorName.isNotEmpty)
-                                Text('by $creatorName',
+                                Text(creatorName,
                                   style: GoogleFonts.cinzel(
                                     color: Colors.white54, fontSize: 12,
                                     shadows: const [Shadow(color: Colors.black87, blurRadius: 4)])),
@@ -477,45 +494,37 @@ class _ArmyRowCardState extends State<_ArmyRowCard> {
                         Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                           GestureDetector(
                             onTap: hasLore ? () => setState(() => _loreExpanded = !_loreExpanded) : null,
-                            behavior: HitTestBehavior.opaque,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                              child: Center(
-                                child: MouseRegion(
-                                  cursor: hasLore ? SystemMouseCursors.click : MouseCursor.defer,
-                                  onEnter: hasLore ? (_) => setState(() => _loreHovered = true)  : null,
-                                  onExit:  hasLore ? (_) => setState(() => _loreHovered = false) : null,
-                                  child: AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 80),
-                                    opacity: hasLore ? (_loreExpanded || _loreHovered ? 1.0 : 0.55) : 0.2,
-                                    child: Icon(
-                                      _loreExpanded ? Icons.menu_book : Icons.menu_book_outlined,
-                                      color: AppColors.gold, size: 18,
-                                      shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])))))),
+                            child: MouseRegion(
+                              cursor: hasLore ? SystemMouseCursors.click : MouseCursor.defer,
+                              onEnter: hasLore ? (_) => setState(() => _loreHovered = true)  : null,
+                              onExit:  hasLore ? (_) => setState(() => _loreHovered = false) : null,
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 80),
+                                opacity: hasLore ? (_loreExpanded || _loreHovered ? 1.0 : 0.55) : 0.2,
+                                child: Icon(
+                                  _loreExpanded ? Icons.menu_book : Icons.menu_book_outlined,
+                                  color: AppColors.gold, size: 18,
+                                  shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])))),
                           const SizedBox(width: 10),
                           GestureDetector(
                             onTap: () => setState(() => _unitsExpanded = !_unitsExpanded),
-                            behavior: HitTestBehavior.opaque,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                              child: Center(
-                                child: MouseRegion(
-                                  cursor: SystemMouseCursors.click,
-                                  onEnter: (_) => setState(() => _unitsHovered = true),
-                                  onExit:  (_) => setState(() => _unitsHovered = false),
-                                  child: AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 80),
-                                    opacity: _unitsExpanded || _unitsHovered ? 1.0 : 0.55,
-                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                      Text('$units',
-                                        style: GoogleFonts.cinzel(
-                                          color: AppColors.gold, fontSize: 13,
-                                          shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
-                                      const SizedBox(width: 3),
-                                      Icon(_unitsExpanded ? Icons.group : Icons.group_outlined,
-                                        color: AppColors.gold, size: 18,
-                                        shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]),
-                                    ])))))),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              onEnter: (_) => setState(() => _unitsHovered = true),
+                              onExit:  (_) => setState(() => _unitsHovered = false),
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 80),
+                                opacity: _unitsExpanded || _unitsHovered ? 1.0 : 0.55,
+                                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Text('$units',
+                                    style: GoogleFonts.cinzel(
+                                      color: AppColors.gold, fontSize: 13,
+                                      shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
+                                  const SizedBox(width: 3),
+                                  Icon(_unitsExpanded ? Icons.group : Icons.group_outlined,
+                                    color: AppColors.gold, size: 18,
+                                    shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]),
+                                ])))),
                           const Spacer(),
                           Row(mainAxisSize: MainAxisSize.min, children: [
                             BannerStat('$_cp',   'AP'),

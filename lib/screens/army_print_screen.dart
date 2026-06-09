@@ -693,7 +693,7 @@ class _ArmyPrintScreenState extends State<ArmyPrintScreen> {
             widget.army.name.isEmpty ? 'Print Army' : 'Print � ${widget.army.name}',
             style: GoogleFonts.cinzel(color: _gold, fontSize: 15, letterSpacing: 1)),
           if (widget.creator != null && widget.creator!.isNotEmpty)
-            Text('by ${widget.creator}',
+            Text(widget.creator!,
               style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 11)),
         ]),
         centerTitle: true,

@@ -76,6 +76,12 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
     if (_imageB64 != null) _cachedPhoto = buildCroppedPhotoDisplay(_imageB64!, AppColors.bannerW, AppColors.bannerH);
     _bgColor   = widget.bgColor ?? '#1E1A15';
     _lore = widget.lore;
+    // Auto-load metadata from DB when no visual params provided (e.g. navigated from builder)
+    if (widget.imageB64 == null && widget.bgColor == null && widget.lore == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _reloadMeta(context.read<ArmyState>().listId);
+      });
+    }
   }
 
   void _toggleLore() => setState(() => _loreOpen = !_loreOpen);
@@ -224,14 +230,12 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
 
   // â"€â"€ Share army â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   Future<void> _shareArmy(ArmyState army) async {
-    // Show spinner while generating
-    showAetherraDialogRaw<void>(context,
-      aetherraDialogContainer(
-        title: 'Share Army',
-        content: const SizedBox(
-          height: 60,
-          child: Center(child: CircularProgressIndicator(color: AppColors.gold)))),
-      barrierDismissible: false);
+    showAetherraSheet<void>(context,
+      title: 'Share Army',
+      isDismissible: false,
+      body: const SizedBox(
+        height: 60,
+        child: Center(child: CircularProgressIndicator(color: AppColors.gold))));
 
     String? code;
     String? error;
@@ -281,36 +285,34 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
       ]);
     }
 
-    await showAetherraDialogRaw<void>(context,
-      aetherraDialogContainer(
-        title: 'Share Army',
-        content: shareContent,
-        actions: [
-          aDialogBtn('Cancel', AppColors.grey, () => Navigator.of(context).pop()),
-          if (code != null)
-            aDialogBtn('Send', AppColors.gold, () async {
-              Navigator.of(context).pop();
-              final armyName = army.name.isEmpty ? 'Unnamed Army' : army.name;
-              final text = 'Join my Aetherra army "$armyName"!\n'
-                           'Import code: $code\n'
-                           '(Open Armies → Import → enter the code)';
-              bool shared = false;
-              try {
-                final result = await SharePlus.instance.share(ShareParams(text: text));
-                shared = result.status == ShareResultStatus.success;
-              } catch (_) {}
-              if (!shared && mounted) {
-                await Clipboard.setData(ClipboardData(text: code!));
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    backgroundColor: AppColors.dark,
-                    content: Text('Code "$code" kopiert!',
-                      style: GoogleFonts.cinzel(color: AppColors.gold))));
-                }
+    await showAetherraSheet<void>(context,
+      title: 'Share Army',
+      body: shareContent,
+      actions: [
+        SheetAction('Cancel', AppColors.grey, () => Navigator.of(context).pop(), outlined: true),
+        if (code != null)
+          SheetAction('Send', AppColors.gold, () async {
+            Navigator.of(context).pop();
+            final armyName = army.name.isEmpty ? 'Unnamed Army' : army.name;
+            final text = 'Join my Aetherra army "$armyName"!\n'
+                         'Import code: $code\n'
+                         '(Open Armies → Import → enter the code)';
+            bool shared = false;
+            try {
+              final result = await SharePlus.instance.share(ShareParams(text: text));
+              shared = result.status == ShareResultStatus.success;
+            } catch (_) {}
+            if (!shared && mounted) {
+              await Clipboard.setData(ClipboardData(text: code!));
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  backgroundColor: AppColors.dark,
+                  content: Text('Code "$code" kopiert!',
+                    style: GoogleFonts.cinzel(color: AppColors.gold))));
               }
-            }),
-        ],
-      ));
+            }
+          }),
+      ]);
   }
 
   // â"€â"€ Edit bottom sheet â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -575,14 +577,14 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                   onPressed: () async {
                     Navigator.pop(ctx);
                     final nav = Navigator.of(context);
-                    final ok = await showAetherraDialog<bool>(
+                    final ok = await showAetherraSheet<bool>(
                       context,
                       title: 'Delete Army?',
-                      content: Text('This cannot be undone.',
+                      body: Text('This cannot be undone.',
                         style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
                       actions: [
-                        aDialogBtn('Cancel', grey, () => Navigator.pop(context, false)),
-                        aDialogBtn('Delete', Colors.red.shade300, () => Navigator.pop(context, true)),
+                        SheetAction('Cancel', grey, () => Navigator.pop(context, false), outlined: true),
+                        SheetAction('Delete', Colors.red, () => Navigator.pop(context, true)),
                       ]);
                     if (ok != true || !mounted) return;
                     if (army.listId != null) {
@@ -596,9 +598,9 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                     style: GoogleFonts.cinzel(
                       fontSize: 14, letterSpacing: 1)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red.shade300,
+                    foregroundColor: Colors.red,
                     side: BorderSide(
-                      color: Colors.red.shade300.withValues(alpha: 0.5)),
+                      color: Colors.red.withValues(alpha: 0.5)),
                     shape: const RoundedRectangleBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 12)))),
             ])))));
@@ -668,7 +670,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                             shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
                         if (widget.creatorName != null && widget.creatorName!.isNotEmpty) ...[
                           const SizedBox(height: 2),
-                          Text('by ${widget.creatorName}',
+                          Text(widget.creatorName!,
                             style: GoogleFonts.cinzel(
                               color: Colors.white54, fontSize: 12,
                               shadows: const [Shadow(color: Colors.black87, blurRadius: 4)])),
@@ -793,15 +795,15 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
 
   void _addGroupDialog(BuildContext context, ArmyState army) {
     final ctrl = TextEditingController();
-    showAetherraDialog(context,
+    showAetherraSheet(context,
       title: 'New Cohort',
-      content: AetherraTextField(
+      body: AetherraTextField(
         controller: ctrl,
         autofocus: true,
         hintText: 'Cohort name...'),
       actions: [
-        aDialogBtn('Cancel', grey, () => Navigator.pop(context)),
-        aDialogBtn('Add', gold, () {
+        SheetAction('Cancel', grey, () => Navigator.pop(context), outlined: true),
+        SheetAction('Add', gold, () {
           army.addGroup(ctrl.text.trim());
           Navigator.pop(context);
           _autoSave(army);
@@ -812,15 +814,15 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
   Future<void> _editUnit(
       BuildContext context, ArmyUnit unit, ArmyState army) async {
     if (unit.isEmbedded && !SubscriptionService.isPremium) {
-      await showAetherraDialog(context,
+      await showAetherraSheet(context,
         title: 'Premium Required',
-        content: Text(
+        body: Text(
           '"${unit.unit.name}" is a custom unit from a shared army.\n\n'
           'Upgrade to Premium to edit or reuse custom units.',
           style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13, height: 1.5)),
         actions: [
-          aDialogBtn('Cancel', AppColors.grey, () => Navigator.of(context).pop()),
-          aDialogBtn('Upgrade', AppColors.gold, () {
+          SheetAction('Cancel',  AppColors.grey, () => Navigator.of(context).pop(), outlined: true),
+          SheetAction('Upgrade', AppColors.gold, () {
             Navigator.of(context).pop();
             Navigator.push(context,
               MaterialPageRoute(builder: (_) => const MyFactionsScreen()));
@@ -832,14 +834,14 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
     final isUserUnit = GameDataService.userUnits.any((u) => u['id'] == unit.unit.id);
 
     void showPremiumMsg() {
-      showAetherraDialog(context,
+      showAetherraSheet(context,
         title: 'Premium Required',
-        content: Text(
+        body: Text(
           'Photo, Lore and Background Color are only available with a Premium subscription.',
           style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
         actions: [
-          aDialogBtn('Cancel', grey, () => Navigator.of(context).pop()),
-          aDialogBtn('Upgrade', gold, () {
+          SheetAction('Cancel',  grey, () => Navigator.of(context).pop(), outlined: true),
+          SheetAction('Upgrade', gold, () {
             Navigator.of(context).pop();
             Navigator.push(context,
               MaterialPageRoute(builder: (_) => const MyFactionsScreen()));

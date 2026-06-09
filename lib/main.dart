@@ -264,7 +264,7 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Decorative line
-            Container(height: 1, width: 40, color: gold.withValues(alpha: 0.5)),
+            Container(height: 1, width: 48, color: gold.withValues(alpha: 0.35)),
             const SizedBox(height: 20),
 
             // Title

@@ -108,13 +108,13 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
   }
 
   Future<void> _deleteSave(Map<String, dynamic> save) async {
-    final confirm = await showAetherraDialog<bool>(context,
+    final confirm = await showAetherraSheet<bool>(context,
       title: 'Delete Save?',
-      content: Text('Delete "${save['name']}"? This cannot be undone.',
+      body: Text('Delete "${save['name']}"? This cannot be undone.',
         style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
       actions: [
-        aDialogBtn('Cancel', grey, () => Navigator.pop(context, false)),
-        aDialogBtn('Delete', Colors.red.shade300, () => Navigator.pop(context, true)),
+        SheetAction('Cancel', grey,               () => Navigator.pop(context, false), outlined: true),
+        SheetAction('Delete', Colors.red, () => Navigator.pop(context, true)),
       ]);
     if (confirm != true) return;
     try {
@@ -128,7 +128,7 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           backgroundColor: AppColors.dark,
           content: Text('Could not delete save. Please try again.',
-            style: GoogleFonts.cinzel(color: Colors.red.shade300))));
+            style: GoogleFonts.cinzel(color: Colors.red))));
       }
     }
   }
@@ -269,6 +269,11 @@ class _GameSetupScreenState extends State<GameSetupScreen> {
             if (_loadingSaves)
               const Center(child: CircularProgressIndicator(color: gold))
             else if (_saves.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Align(alignment: Alignment.centerLeft,
+                child: Container(height: 1, width: 48,
+                  color: gold.withValues(alpha: 0.35))),
+              const SizedBox(height: 16),
               _sectionHeader('CONTINUE SAVED GAME', Icons.play_circle_outline),
               const SizedBox(height: 8),
               for (final sv in _saves) _SaveRow(
@@ -926,7 +931,7 @@ class _ArmyRowState extends State<_ArmyRow> {
                                   letterSpacing: 2,
                                   shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
                               if (creatorName != null && creatorName.isNotEmpty)
-                                Text('by $creatorName',
+                                Text(creatorName,
                                   style: GoogleFonts.cinzel(
                                     color: Colors.white54, fontSize: 12,
                                     shadows: const [Shadow(color: Colors.black87, blurRadius: 4)])),

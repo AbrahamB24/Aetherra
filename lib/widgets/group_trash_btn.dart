@@ -14,16 +14,16 @@ class _GroupTrashBtnState extends State<GroupTrashBtn> {
   bool _hovered = false;
 
   void _tap() {
-    showAetherraDialog<bool>(
+    showAetherraSheet<bool>(
       context,
       title: 'Delete Cohort?',
-      content: Text(
+      body: Text(
         'Delete "${widget.groupName}"? All units in this cohort will be disbanded.',
         style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13, height: 1.5),
       ),
       actions: [
-        aDialogBtn('Cancel', AppColors.grey, () => Navigator.pop(context, false)),
-        aDialogBtn('Delete', Colors.red.shade300, () => Navigator.pop(context, true)),
+        SheetAction('Cancel', AppColors.grey, () => Navigator.pop(context, false), outlined: true),
+        SheetAction('Delete', Colors.red,     () => Navigator.pop(context, true)),
       ],
     ).then((ok) { if (ok ?? false) widget.onDelete(); });
   }

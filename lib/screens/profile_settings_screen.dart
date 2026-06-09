@@ -140,28 +140,6 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
-  Future<void> _signOut() async {
-    final ok = await showAetherraDialog<bool>(context,
-      title: 'Sign Out',
-      content: Text('Sign out of your account?',
-        style: GoogleFonts.cinzel(color: grey, fontSize: 13)),
-      actions: [
-        aDialogBtn('Cancel', grey, () => Navigator.pop(context, false)),
-        aDialogBtn('Sign Out', Colors.red.shade300, () => Navigator.pop(context, true)),
-      ]);
-    if (ok != true || !mounted) return;
-    try {
-      await Supabase.instance.client.auth.signOut();
-      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: AppColors.dark,
-        content: Text('Sign out failed.',
-          style: GoogleFonts.cinzel(color: Colors.red.shade300))));
-      }
-    }
-  }
 
   Future<void> _exportData() async {
     setState(() => _exporting = true);
@@ -179,7 +157,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.dark,
         content: Text('Export failed: ${_errMsg(e)}',
-          style: GoogleFonts.cinzel(color: Colors.red.shade300))));
+          style: GoogleFonts.cinzel(color: Colors.red))));
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -187,17 +165,16 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Future<void> _deleteProfile() async {
-    final confirmed = await showAetherraDialogRaw<bool>(context,
-      aetherraDialogContainer(
-        title: 'Delete Profile',
-        titleColor: Colors.red.shade400,
-        content: Text(
-          'This will permanently delete your account and all data. This cannot be undone.',
-          style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.6)),
-        actions: [
-          aDialogBtn('Cancel', grey, () => Navigator.pop(context, false)),
-          aDialogBtn('Delete', Colors.red.shade300, () => Navigator.pop(context, true)),
-        ]));
+    final confirmed = await showAetherraSheet<bool>(context,
+      title: 'Delete Profile',
+      titleColor: Colors.red,
+      body: Text(
+        'This will permanently delete your account and all data. This cannot be undone.',
+        style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.6)),
+      actions: [
+        SheetAction('Cancel', grey,               () => Navigator.pop(context, false), outlined: true),
+        SheetAction('Delete', Colors.red, () => Navigator.pop(context, true)),
+      ]);
     if (confirmed != true || !mounted) return;
     try {
       await Supabase.instance.client.rpc('delete_user');
@@ -207,7 +184,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.dark,
         content: Text(_errMsg(e),
-          style: GoogleFonts.cinzel(color: Colors.red.shade300))));
+          style: GoogleFonts.cinzel(color: Colors.red))));
       }
     }
   }
@@ -410,21 +387,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           OutlinedButton(
             onPressed: _deleteProfile,
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.red.shade300,
-              side: BorderSide(color: Colors.red.shade300.withValues(alpha: 0.5)),
+              foregroundColor: Colors.red,
+              side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
               shape: const RoundedRectangleBorder(),
               padding: const EdgeInsets.symmetric(vertical: 12)),
             child: Center(child: Text('Delete Profile',
-              style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1)))),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: _signOut,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: grey,
-              side: BorderSide(color: grey.withValues(alpha: 0.4)),
-              shape: const RoundedRectangleBorder(),
-              padding: const EdgeInsets.symmetric(vertical: 12)),
-            child: Center(child: Text('Sign Out',
               style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1)))),
         ],
       ),
@@ -435,12 +402,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
   Widget _label(String text, {bool danger = false}) => Text(text,
     style: GoogleFonts.cinzel(
-      color: danger ? Colors.red.shade400 : gold,
+      color: danger ? Colors.red : gold,
       fontSize: 12, letterSpacing: 1.6));
 
-  Widget _gap() => Column(children: [
+  Widget _gap() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     const SizedBox(height: 28),
-    Container(height: 1, color: gold.withValues(alpha: 0.1)),
+    Container(height: 1, width: 48, color: gold.withValues(alpha: 0.35)),
     const SizedBox(height: 28),
   ]);
 
@@ -450,7 +417,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       padding: const EdgeInsets.only(top: 8, bottom: 4),
       child: Text(msg,
         style: TextStyle(
-          color: ok ? Colors.green.shade400 : Colors.red.shade300,
+          color: ok ? Colors.green.shade400 : Colors.red,
           fontSize: 13)));
   }
 

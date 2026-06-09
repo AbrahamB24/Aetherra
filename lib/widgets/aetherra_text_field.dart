@@ -20,6 +20,7 @@ class AetherraTextField extends StatefulWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final bool obscureText;
+  final bool clearable;
   final void Function(String)? onChanged;
   final void Function(String)? onSubmitted;
 
@@ -41,6 +42,7 @@ class AetherraTextField extends StatefulWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.obscureText = false,
+    this.clearable = false,
     this.onChanged,
     this.onSubmitted,
   });
@@ -50,10 +52,50 @@ class AetherraTextField extends StatefulWidget {
 }
 
 class _AetherraTextFieldState extends State<AetherraTextField> {
-  bool _hovered = false;
+  bool _hovered      = false;
+  bool _clearHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.clearable) widget.controller?.addListener(_rebuild);
+  }
+
+  @override
+  void didUpdateWidget(AetherraTextField old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller || old.clearable != widget.clearable) {
+      old.controller?.removeListener(_rebuild);
+      if (widget.clearable) widget.controller?.addListener(_rebuild);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  void _rebuild() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
+    final hasText = widget.clearable &&
+        (widget.controller?.text.isNotEmpty ?? false);
+    final effectiveSuffix = hasText
+        ? MouseRegion(
+            cursor: SystemMouseCursors.click,
+            onEnter: (_) => setState(() => _clearHovered = true),
+            onExit:  (_) => setState(() => _clearHovered = false),
+            child: GestureDetector(
+              onTap: () {
+                widget.controller?.clear();
+                widget.onChanged?.call('');
+              },
+              child: Icon(Icons.close, size: 16,
+                color: _clearHovered ? AppColors.textLight : AppColors.grey)))
+        : widget.suffixIcon;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit:  (_) => setState(() => _hovered = false),
@@ -75,8 +117,8 @@ class _AetherraTextFieldState extends State<AetherraTextField> {
           hintText: widget.hintText,
           hintStyle: widget.hintStyle ?? const TextStyle(color: AppColors.grey),
           prefixIcon: widget.prefixIcon,
-          suffixIcon: widget.suffixIcon,
-          suffixIconConstraints: widget.suffixIcon != null
+          suffixIcon: effectiveSuffix,
+          suffixIconConstraints: (!hasText && widget.suffixIcon != null)
             ? const BoxConstraints(maxWidth: 44, maxHeight: 44)
             : null,
           filled: true,

@@ -64,10 +64,11 @@ class _NewArmyScreenState extends State<NewArmyScreen> {
     String? errorMsg;
     bool loading = false;
 
-    await showAetherraDialogRaw<void>(context, StatefulBuilder(builder: (ctx, setS) =>
-      aetherraDialogContainer(
-        title: 'Import Army',
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
+    await showAetherraSheet<void>(context,
+      title: 'Import Army',
+      body: StatefulBuilder(builder: (ctx, setS) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           Text('Enter the 6-character share code:',
             style: GoogleFonts.cinzel(color: grey, fontSize: 13)),
           const SizedBox(height: 12),
@@ -104,13 +105,19 @@ class _NewArmyScreenState extends State<NewArmyScreen> {
             const SizedBox(height: 8),
             Text(errorMsg!, style: GoogleFonts.cinzel(color: Colors.redAccent, fontSize: 12)),
           ],
-        ]),
-        actions: [
-          aDialogBtn('Cancel', grey, loading ? null : () => Navigator.of(ctx).pop()),
-          loading
-            ? const SizedBox(width: 16, height: 16,
-                child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.gold))
-            : aDialogBtn('Import', gold, () async {
+          const SizedBox(height: 20),
+          Row(children: [
+            Expanded(child: OutlinedButton(
+              onPressed: loading ? null : () => Navigator.of(ctx).pop(),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: grey,
+                side: BorderSide(color: grey.withValues(alpha: 0.4)),
+                shape: const RoundedRectangleBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: Text('Cancel', style: GoogleFonts.cinzel(fontSize: 14)))),
+            const SizedBox(width: 12),
+            Expanded(child: ElevatedButton(
+              onPressed: loading ? null : () async {
                 final code = codeCtrl.text.trim().toUpperCase();
                 if (code.length != 6) {
                   setS(() => errorMsg = 'Code must be 6 characters.');
@@ -125,9 +132,19 @@ class _NewArmyScreenState extends State<NewArmyScreen> {
                 await ArmyService.importArmy(row);
                 if (ctx.mounted) Navigator.of(ctx).pop();
                 if (mounted) Navigator.of(context).pop();
-              }),
-        ],
-      )));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gold,
+                foregroundColor: AppColors.dark,
+                shape: const RoundedRectangleBorder(),
+                padding: const EdgeInsets.symmetric(vertical: 14)),
+              child: loading
+                ? const SizedBox(width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.dark))
+                : Text('Import', style: GoogleFonts.cinzel(
+                    fontSize: 14, fontWeight: FontWeight.w600)))),
+          ]),
+        ])));
   }
 
   void _startBuilding() {
@@ -264,7 +281,7 @@ class _NewArmyScreenState extends State<NewArmyScreen> {
       if (_nameError) ...[
         const SizedBox(height: 8),
         Text('A name is required.',
-          style: TextStyle(color: Colors.red.shade300, fontSize: 14)),
+          style: TextStyle(color: Colors.red, fontSize: 14)),
       ],
     ]);
   }
@@ -577,7 +594,7 @@ class _FacSelectCardState extends State<_FacSelectCard> {
                               shadows: [const Shadow(color: Colors.black54, blurRadius: 6)])),
                           Text(
                             widget.f['_source'] == 'user' && widget.creatorName.isNotEmpty
-                              ? 'by ${widget.creatorName}' : 'by Aetherra',
+                              ? widget.creatorName : 'Aetherra',
                             style: GoogleFonts.cinzel(color: Colors.white54, fontSize: 12,
                               shadows: [const Shadow(color: Colors.black87, blurRadius: 4)])),
                         ])),

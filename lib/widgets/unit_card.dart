@@ -240,14 +240,15 @@ Widget _abilityRows(List<String> abs, {
   VoidCallback? Function(String)? onAbilityUse}) {
 
   if (abs.isEmpty) {
-    return SizedBox(height: 29.0 * 2,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return Column(crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
         const SizedBox(height: 29),
         Row(children: [
           const Expanded(child: SizedBox()),
           if (trailing != null) trailing,
         ]),
-      ]));
+      ]);
   }
 
   return LayoutBuilder(builder: (ctx, bc) {
@@ -351,13 +352,15 @@ class UnitCard extends StatefulWidget {
   final VoidCallback? onEdit;
   final Widget? trailing;
   final bool locked;
+  final bool hideBorder;
   final VoidCallback? Function(String)? onAbilityUse;
   const UnitCard({super.key,
     required this.unit, this.customName, this.photoBase64,
     this.bgColor, this.lore,
     this.dimmed = false,
     this.accentColor, this.actions, this.onEdit,
-    this.trailing, this.locked = false, this.onAbilityUse});
+    this.trailing, this.locked = false, this.hideBorder = false,
+    this.onAbilityUse});
   @override State<UnitCard> createState() => _UnitCardWidgetState();
 }
 
@@ -435,7 +438,7 @@ class _UnitCardWidgetState extends State<UnitCard> with TickerProviderStateMixin
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: widget.dimmed ? AppColors.dark.withValues(alpha: 0.7) : AppColors.dark),
-      foregroundDecoration: BoxDecoration(
+      foregroundDecoration: widget.hideBorder ? null : BoxDecoration(
         border: Border.all(
           color: widget.dimmed ? grey.withValues(alpha: 0.2)
             : (widget.accentColor ?? tc).withValues(alpha: 0.4),
@@ -752,7 +755,7 @@ class _RosterCardState extends State<RosterCard> with TickerProviderStateMixin {
             Expanded(child: Opacity(
               opacity: widget.isDisabled ? 0.5 : 1.0,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 3, 6, 3),
+                padding: const EdgeInsets.fromLTRB(8, 0, 6, 0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start, children: [
