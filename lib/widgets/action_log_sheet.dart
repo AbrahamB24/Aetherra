@@ -32,6 +32,7 @@ const _tagColors = <String, Color>{
   'heal':      Color(0xFF5A9060),
   'eliminate': Color(0xFF888888),
   'activate':  Color(0xFFC9A84C),
+  'ready':     Color(0xFF6B7A8D),
   'reactive':  Color(0xFF8855CC),
   'condition': Color(0xFFE07828),
   'cp':        Color(0xFF4466BB),
@@ -48,6 +49,7 @@ const _tagIcons = <String, IconData>{
   'heal':      Icons.favorite,
   'eliminate': Icons.highlight_off,
   'activate':  Icons.check_circle_outline,
+  'ready':     Icons.radio_button_unchecked,
   'reactive':  Icons.bolt_outlined,
   'condition': Icons.warning_amber_outlined,
   'cp':        Icons.bolt_outlined,
@@ -59,8 +61,8 @@ const _tagIcons = <String, IconData>{
 // ── Filter groups ─────────────────────────────────────────────────────────────
 const _filterGroups = <String, List<String>>{
   'STR':      ['damage', 'heal', 'eliminate'],
-  'AP':       ['cp', 'reactive'],
-  'Activate': ['activate'],
+  'CP':       ['cp', 'reactive'],
+  'Activate': ['activate', 'ready'],
   'Status':   ['condition'],
   'Tokens':   ['token'],
   'Dice':     ['dice'],
@@ -68,7 +70,7 @@ const _filterGroups = <String, List<String>>{
 
 const _filterIcons = <String, IconData>{
   'STR':      Icons.favorite,
-  'AP':       Icons.bolt_outlined, // cp = indigo bolt, reactive = purple bolt
+  'CP':       Icons.bolt_outlined, // cp = indigo bolt, reactive = purple bolt
   'Activate': Icons.check_circle_outline,
   'Status':   Icons.warning_amber_outlined,
   'Tokens':   Icons.square,
@@ -77,7 +79,7 @@ const _filterIcons = <String, IconData>{
 
 const _filterColors = <String, Color>{
   'STR':      Color(0xFFCF4040),
-  'AP':       Color(0xFF8855CC),
+  'CP':       Color(0xFF8855CC),
   'Activate': Color(0xFFC9A84C),
   'Status':   Color(0xFFE07828),
   'Tokens':   Color(0xFF3A8FC0),
@@ -150,70 +152,68 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
             color: AppColors.gold, fontSize: 15, letterSpacing: 1)),
         const SizedBox(height: 8),
 
-        // ── Round-jump dropdown ───────────────────────────────────────────────
-        if (rounds.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+        // ── Dropdowns row (round-jump + filter) ──────────────────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              splashFactory:  NoSplash.splashFactory,
+              highlightColor: Colors.transparent,
+              splashColor:    Colors.transparent,
+              hoverColor:     Colors.transparent),
             child: Row(children: [
-              Theme(
-                data: Theme.of(context).copyWith(
-                  splashFactory:  NoSplash.splashFactory,
-                  highlightColor: Colors.transparent,
-                  splashColor:    Colors.transparent,
-                  hoverColor:     Colors.transparent),
-                child: PopupMenuButton<int>(
+              // Round jump
+              if (rounds.isNotEmpty) ...[
+                PopupMenuButton<int>(
                   color:          AppColors.dark,
                   shape:          const RoundedRectangleBorder(),
                   tooltip:        '',
                   padding:        EdgeInsets.zero,
                   enableFeedback: false,
                   onSelected:     _jump,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: AppColors.gold.withValues(alpha: 0.4))),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text('Jump to Round',
-                        style: GoogleFonts.cinzel(
-                          color: AppColors.gold.withValues(alpha: 0.75),
-                          fontSize: 11, letterSpacing: 0.5)),
-                      const SizedBox(width: 4),
-                      Icon(Icons.keyboard_arrow_down,
-                        color: AppColors.gold.withValues(alpha: 0.75), size: 15),
-                    ])),
+                  child: const _DropdownLabel(
+                    label: 'Round',
+                    active: false),
                   itemBuilder: (_) => [
                     for (final r in rounds)
                       PopupMenuItem<int>(
                         value:   r,
                         padding: EdgeInsets.zero,
                         child:   _RoundMenuItem(round: r)),
-                  ])),
-            ])),
-
-        // ── Filter chips ──────────────────────────────────────────────────────
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          child: Row(children: [
-            _FilterChip(
-              label:  'All',
-              icon:   Icons.list_outlined,
-              color:  AppColors.grey,
-              active: _filterGroup == null,
-              onTap:  () => setState(() => _filterGroup = null)),
-            const SizedBox(width: 6),
-            for (final group in _filterGroups.keys) ...[
-              _FilterChip(
-                label:  group,
-                icon:   _filterIcons[group]!,
-                color:  _filterColors[group]!,
-                active: _filterGroup == group,
-                onTap:  () => setState(() =>
-                    _filterGroup = _filterGroup == group ? null : group)),
-              const SizedBox(width: 6),
-            ],
-          ])),
+                  ]),
+                const SizedBox(width: 8),
+              ],
+              // Filter — use 'all' sentinel because PopupMenuButton skips null onSelected
+              PopupMenuButton<String>(
+                color:          AppColors.dark,
+                shape:          const RoundedRectangleBorder(),
+                tooltip:        '',
+                padding:        EdgeInsets.zero,
+                enableFeedback: false,
+                onSelected: (v) =>
+                    setState(() => _filterGroup = v == 'all' ? null : v),
+                child: _DropdownLabel(
+                  label: _filterGroup ?? 'All',
+                  active: _filterGroup != null),
+                itemBuilder: (_) => [
+                  PopupMenuItem<String>(
+                    value:   'all',
+                    padding: EdgeInsets.zero,
+                    child:   _FilterMenuItem(
+                      label: 'All', icon: Icons.list_outlined,
+                      color: AppColors.grey, active: _filterGroup == null)),
+                  for (final group in _filterGroups.keys)
+                    PopupMenuItem<String>(
+                      value:   group,
+                      padding: EdgeInsets.zero,
+                      child:   _FilterMenuItem(
+                        label:  group,
+                        icon:   _filterIcons[group]!,
+                        color:  _filterColors[group]!,
+                        active: _filterGroup == group,
+                        isDice: group == 'Dice')),
+                ]),
+            ]))),
 
         // ── Log list ──────────────────────────────────────────────────────────
         Expanded(child: visible.isEmpty
@@ -235,50 +235,68 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
   }
 }
 
-// ── Filter chip ───────────────────────────────────────────────────────────────
-class _FilterChip extends StatefulWidget {
-  final String       label;
-  final IconData     icon;
-  final Color        color;
-  final bool         active;
-  final VoidCallback onTap;
-  const _FilterChip({
-    required this.label, required this.icon, required this.color,
-    required this.active, required this.onTap});
-  @override State<_FilterChip> createState() => _FilterChipState();
+// ── Dropdown trigger label ────────────────────────────────────────────────────
+class _DropdownLabel extends StatelessWidget {
+  final String label;
+  final bool   active; // true when a non-default value is selected
+  const _DropdownLabel({required this.label, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final col = active ? AppColors.gold : AppColors.gold.withValues(alpha: 0.65);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: active
+              ? AppColors.gold.withValues(alpha: 0.6)
+              : AppColors.gold.withValues(alpha: 0.35))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(label,
+          style: GoogleFonts.cinzel(
+            color: col, fontSize: 11, letterSpacing: 0.5)),
+        const SizedBox(width: 4),
+        Icon(Icons.keyboard_arrow_down, color: col, size: 15),
+      ]));
+  }
 }
-class _FilterChipState extends State<_FilterChip> {
+
+// ── Filter dropdown menu item ─────────────────────────────────────────────────
+class _FilterMenuItem extends StatefulWidget {
+  final String   label;
+  final IconData icon;
+  final Color    color;
+  final bool     active;
+  final bool     isDice;
+  const _FilterMenuItem({
+    required this.label, required this.icon,
+    required this.color, required this.active,
+    this.isDice = false});
+  @override State<_FilterMenuItem> createState() => _FilterMenuItemState();
+}
+class _FilterMenuItemState extends State<_FilterMenuItem> {
   bool _hovered = false;
   @override Widget build(BuildContext context) {
-    final col = widget.color;
     final on  = widget.active || _hovered;
+    final col = on ? widget.color : AppColors.grey.withValues(alpha: 0.6);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit:  (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-          decoration: BoxDecoration(
-            color:  on ? col.withValues(alpha: 0.12) : Colors.transparent,
-            border: Border.all(
-              color: on ? col.withValues(alpha: 0.7)
-                        : AppColors.grey.withValues(alpha: 0.25),
-              width: on ? 1.2 : 0.8)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(widget.icon,
-              size: 11,
-              color: on ? col : AppColors.grey.withValues(alpha: 0.45)),
-            const SizedBox(width: 5),
-            Text(widget.label,
-              style: GoogleFonts.cinzel(
-                color: on ? col : AppColors.grey.withValues(alpha: 0.55),
-                fontSize: 10,
-                letterSpacing: 0.4,
-                fontWeight: on ? FontWeight.w600 : FontWeight.w400)),
-          ]))));
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+        child: Row(children: [
+          SizedBox(width: 12, height: 12,
+            child: widget.isDice
+              ? D20Icon(color: col, size: 12)
+              : Icon(widget.icon, size: 12, color: col)),
+          const SizedBox(width: 8),
+          Text(widget.label,
+            style: GoogleFonts.cinzel(
+              color: col, fontSize: 12,
+              fontWeight: on ? FontWeight.w600 : FontWeight.w400)),
+        ])));
   }
 }
 
@@ -323,8 +341,22 @@ class ActionLogTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2))))
             : Icon(icon, size: 13, color: color.withValues(alpha: 0.8))),
         const SizedBox(width: 7),
-        Expanded(child: Text(entry.text,
-          style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 11))),
+        Expanded(child: () {
+          final keyword = entry.tag == 'activate' ? 'activated'
+                        : entry.tag == 'ready'    ? 'ready'
+                        : null;
+          final base = GoogleFonts.cinzel(color: AppColors.grey, fontSize: 11);
+          if (keyword == null) return Text(entry.text, style: base);
+          final idx = entry.text.lastIndexOf(keyword);
+          if (idx == -1)        return Text(entry.text, style: base);
+          return Text.rich(TextSpan(style: base, children: [
+            if (idx > 0) TextSpan(text: entry.text.substring(0, idx)),
+            TextSpan(text: keyword,
+              style: TextStyle(color: color.withValues(alpha: 0.9))),
+            if (idx + keyword.length < entry.text.length)
+              TextSpan(text: entry.text.substring(idx + keyword.length)),
+          ]));
+        }()),
         if (entry.player != null) ...[
           const SizedBox(width: 6),
           _PlayerChip(name: entry.player!),

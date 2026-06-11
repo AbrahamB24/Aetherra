@@ -719,7 +719,7 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
                           ])))),
                     const Spacer(),
                     Row(mainAxisSize: MainAxisSize.min, children: [
-                      BannerStat('${army.totalCP}', 'AP'),
+                      BannerStat('${army.totalCP}', 'CP'),
                       BannerStat('${army.units.fold(0, (s, u) => s + u.unit.atk)}', 'ATK'),
                       BannerStat('${army.units.fold(0, (s, u) => s + u.unit.def)}', 'DEF'),
                       BannerStat('${army.units.fold(0, (s, u) => s + u.unit.rng)}', 'SHO'),

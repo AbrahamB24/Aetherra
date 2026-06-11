@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models/app_state.dart';
 import 'models/army_state.dart';
 import 'services/game_data_service.dart';
 import 'services/subscription_service.dart';
 import 'screens/home_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'game/notifiers/game_notifier.dart';
 import '../app_theme.dart';
 import 'widgets/aetherra_text_field.dart';
@@ -115,6 +117,7 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool? _ready;
+  bool  _onboardingDone = true;
 
   @override
   void initState() {
@@ -143,13 +146,21 @@ class _AuthGateState extends State<AuthGate> {
   Future<void> _loadAll() async {
     final user = _sb.auth.currentUser;
     if (user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final done  = prefs.getBool('onboarding_done') ?? false;
     // Load role, subscription status, and game data in parallel
     await Future.wait([
       _loadRole(user.id),
       SubscriptionService.load(),
       GameDataService.load(),
     ]);
-    if (mounted) setState(() => _ready = true);
+    if (mounted) setState(() { _ready = true; _onboardingDone = done; });
+  }
+
+  Future<void> _completeOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_done', true);
+    if (mounted) setState(() => _onboardingDone = true);
   }
 
   Future<void> _loadRole(String userId) async {
@@ -178,7 +189,11 @@ class _AuthGateState extends State<AuthGate> {
           ])),
       );
     }
-    return _ready! ? const HomeScreen() : const LoginScreen();
+    if (!_ready!) return const LoginScreen();
+    if (!_onboardingDone) {
+      return OnboardingScreen(onComplete: _completeOnboarding);
+    }
+    return const HomeScreen();
   }
 }
 

@@ -100,8 +100,10 @@ class GameDataService {
       // Merge builtins with DB overrides
       for (final u in builtinUnits) {
         if (dbMap.containsKey(u.id)) {
-          // DB version overrides builtin
-          result.add(_fromDb(dbMap[u.id]!));
+          final entry = _fromDb(dbMap[u.id]!);
+          // Preserve builtin cost when DB row has none (column added later)
+          if ((entry['cost'] as int) == 0) entry['cost'] = u.cost;
+          result.add(entry);
         } else {
           // Use builtin as-is
           result.add(_fromBuiltin(u));
@@ -233,16 +235,36 @@ class GameDataService {
       ]);
       userFactions  = List<Map<String, dynamic>>.from(r[0])
           .map((f) => {...f, '_source': 'user'}).toList();
-      userUnits     = List<Map<String, dynamic>>.from(r[1]).map((u) => {
-        ...u,
-        'abilities': List<String>.from(u['abilities'] ?? []),
-        'type': (u['type'] as String?) == 'Ranged' ? 'Shooting' : u['type'],
-      }).toList();
-      userAbilities = List<Map<String, dynamic>>.from(r[2]).map((a) => ({
+      final rawUserAbilities = List<Map<String, dynamic>>.from(r[2]);
+      userAbilities = rawUserAbilities.map((a) => ({
         ...a,
         'types':    List<String>.from(a['types'] ?? []),
         '_builtin': false,
       })).toList();
+      // Build ability-cost map including user abilities for cost calculation
+      final allAbCosts = {
+        for (final a in [...abilities, ...userAbilities])
+          if (a['name'] != null) a['name'] as String: (a['cost'] as int? ?? 0),
+      };
+      userUnits = List<Map<String, dynamic>>.from(r[1]).map((u) {
+        final abs  = List<String>.from(u['abilities'] ?? []);
+        final type = (u['type'] as String?) == 'Ranged' ? 'Shooting' : (u['type'] as String? ?? 'Infantry');
+        final storedCost = u['cost'] as int? ?? 0;
+        final cost = storedCost > 0
+            ? storedCost
+            : CostConfig.calcCost(
+                a:     (u['atk']     as int? ?? 0),
+                d:     (u['def_val'] as int? ?? 0),
+                s:     (u['rng']     as int? ?? 0),
+                m:     (u['mob']     as int? ?? 6),
+                str:   (u['con_val'] as int? ?? 3),
+                type:  type,
+                cpVal: (u['cp']      as int? ?? 0),
+                abilities:      abs,
+                allAbilityCosts: allAbCosts,
+              );
+        return {...u, 'abilities': abs, 'type': type, 'cost': cost};
+      }).toList();
 
       // Merge into shared lists so army builder sees user content
       factions  = [...factions,  ...userFactions];

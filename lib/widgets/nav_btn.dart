@@ -5,7 +5,8 @@ class NavBtn extends StatefulWidget {
   final IconData icon;
   final VoidCallback? onPressed;
   final double size;
-  const NavBtn({super.key, required this.icon, required this.onPressed, this.size = 48});
+  final double? width;
+  const NavBtn({super.key, required this.icon, required this.onPressed, this.size = 48, this.width});
   @override State<NavBtn> createState() => _NavBtnState();
 }
 
@@ -27,7 +28,7 @@ class _NavBtnState extends State<NavBtn> {
         onTapUp: (_) => setState(() => _pressed = false),
         onTapCancel: () => setState(() => _pressed = false),
         child: SizedBox(
-          width: widget.size, height: widget.size,
+          width: widget.width ?? widget.size, height: widget.size,
           child: Center(child: AnimatedOpacity(
             opacity: widget.onPressed == null ? 0.25 : _pressed ? 0.4 : _hovered ? 1.0 : 0.7,
             duration: const Duration(milliseconds: 80),

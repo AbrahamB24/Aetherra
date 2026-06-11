@@ -12,9 +12,9 @@ import '../widgets/aetherra_dialog.dart';
 import '../widgets/nav_btn.dart';
 import '../widgets/photo_crop_dialog.dart';
 import '../widgets/unit_card.dart';
-import '../widgets/condition_badges.dart';
 import '../widgets/action_log_sheet.dart';
 import '../widgets/aetherra_text_field.dart';
+import '../widgets/tutorial_overlay.dart';
 
 class OnlineGameScreen extends StatefulWidget {
   final OnlineGameManager manager;
@@ -28,12 +28,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   static const grey = AppColors.grey;
   static const dark = AppColors.dark;
 
-  // Unique key of the last-shown dialog — prevents re-showing the same event
-  // Reactive popup shown at most once per game per player.
-  // After the first time, inline buttons in the token-bag area handle responses.
-  bool _shownReactiveAwaiterPopup = false; // I can react — popup once
-  bool _shownReactiveActivePopup  = false; // I must wait — popup once
-  bool _wasWaitingForReactive     = false; // tracks previous "fromPlayer" state
+  // Token-ID of the last reactive event for which each popup was shown.
+  // Showing is keyed to the draw, not a per-game flag — each new draw gets a popup.
+  String? _shownReactiveAwaiterForToken;
+  String? _shownReactiveActiveForToken;
+  bool    _wasWaitingForReactive = false;
+  // After the first reactive wait popup, subsequent waits show a spinner on the button instead.
+  bool    _hasSeenActiveReactivePopup = false;
   bool _shownOpponentLeftPopup    = false;
   bool _waitingForEndGame         = false;
   bool _waitingDialogOpen         = false;
@@ -42,21 +43,75 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   int  _waitingForConfirmRound    = 0;
   int  _confirmedNextRoundAtRound = -1; // suppress stale Realtime after confirming
   OnlinePendingType? _prevPendingType;
-  bool _waitingForConfirm = false;
-  int  _unitTabIdx        = 0; // 0 = My Army, 1 = Opponent
+  bool   _waitingForConfirm = false;
+  int    _unitTabIdx        = 0; // 0 = My Army, 1 = Opponent
+  Timer? _waitingPollTimer;
 
   final _myScrollCtrl  = ScrollController();
   final _oppScrollCtrl = ScrollController();
+
+  // Tutorial keys
+  final _keyBanner  = GlobalKey(debugLabel: 'tut-banner');
+  final _keyTokens  = GlobalKey(debugLabel: 'tut-tokens');
+  final _keyCP      = GlobalKey(debugLabel: 'tut-cp');
+  final _keyDice    = GlobalKey(debugLabel: 'tut-dice');
+  final _keyNextRnd = GlobalKey(debugLabel: 'tut-nextRnd');
+  final _keyTabBar  = GlobalKey(debugLabel: 'tut-tabBar');
+  final _keyUnits   = GlobalKey(debugLabel: 'tut-units');
+  final _keyLog     = GlobalKey(debugLabel: 'tut-log');
+  static final _keyStr = GlobalKey(debugLabel: 'tut-str-online');
+
+  List<TutorialStep> _tutorialSteps() => [
+    TutorialStep(targetKey: _keyTokens,
+      title: 'Activation Bag',
+      body: 'Draw a token to determine which side activates next.'),
+    TutorialStep(targetKey: _keyBanner,
+      title: 'Army Banner',
+      body: 'Shows live stats for the currently displayed army — switch armies using the tabs at the bottom.'),
+    TutorialStep(targetKey: _keyCP,
+      title: 'Command Points (CP)',
+      body: 'Your CP pool. Reactive activations and Command abilities both deduct CP automatically. Use +/− to adjust manually if needed.'),
+    TutorialStep(targetKey: _keyDice,
+      title: 'Dice',
+      body: 'Choose how many dice to roll, then tap to roll them. Results appear on screen and are saved to the action log.'),
+    TutorialStep(targetKey: _keyNextRnd,
+      title: 'Round Controls',
+      body: 'Tap \'Next Round\' to send a request to your opponent — both must confirm before the round advances. \'End Game\' ends the session the same way.'),
+    TutorialStep(targetKey: _keyTabBar,
+      title: 'My Army / Opponent',
+      body: 'Switch between your army and your opponent\'s army.'),
+    TutorialStep(targetKey: _keyUnits,
+      title: 'Unit Cards',
+      body: 'Tap Activate in the unit photo to activate a unit — only available on your turn. Tap Ready to deactivate. Add notes or drag to reorder.'),
+    TutorialStep(targetKey: _keyStr,
+      title: 'STR',
+      body: 'Tap the STR value to open a number picker and set it directly.'),
+    TutorialStep(targetKey: _keyLog,
+      title: 'Action Log',
+      body: 'Full shared log of all rolls and events from both players. Filter by type or jump to a specific round.'),
+  ];
 
   @override
   void initState() {
     super.initState();
     widget.manager.addListener(_onManagerChange);
     WidgetsBinding.instance.addObserver(this);
+    // Poll every 3 s while waiting for the guest to join — fallback for missed Realtime events.
+    if (!widget.manager.gameActive) {
+      _waitingPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+        if (!mounted || widget.manager.gameActive) {
+          _waitingPollTimer?.cancel();
+          _waitingPollTimer = null;
+          return;
+        }
+        widget.manager.pollForStart();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _waitingPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     widget.manager.removeListener(_onManagerChange);
     _myScrollCtrl.dispose();
@@ -75,24 +130,34 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     if (!mounted) return;
     final m = widget.manager;
 
-    // Awaiter popup: only once per game — after that the inline buttons handle it.
+    // Each reactive event gets a unique eventId (timestamp) written by drawToken.
+    // Keying on eventId (not drawnTokenId) ensures tokens put back into the bag
+    // and redrawn later still trigger fresh popups.
+    final reactiveEventId = m.pendingData?['eventId'] as String?;
     if (m.pendingType == OnlinePendingType.reactive &&
         m.pendingData?['awaitingPlayer'] == m.myRole?.name &&
-        !_shownReactiveAwaiterPopup) {
-      _shownReactiveAwaiterPopup = true;
+        reactiveEventId != null &&
+        reactiveEventId != _shownReactiveAwaiterForToken) {
+      _shownReactiveAwaiterForToken = reactiveEventId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showReactiveDialog();
       });
     }
 
-    // Active-player popup: once per game to explain that the opponent is deciding.
+    // Active-player popup: first wait → explain with popup; subsequent waits → spinner on button.
     final iAmWaitingNow = m.pendingType == OnlinePendingType.reactive &&
         m.pendingData?['fromPlayer'] == m.myRole?.name;
-    if (iAmWaitingNow && !_shownReactiveActivePopup) {
-      _shownReactiveActivePopup = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showReactiveActiveDialog();
-      });
+    if (iAmWaitingNow &&
+        reactiveEventId != null &&
+        reactiveEventId != _shownReactiveActiveForToken) {
+      _shownReactiveActiveForToken = reactiveEventId;
+      if (!_hasSeenActiveReactivePopup) {
+        _hasSeenActiveReactivePopup = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showReactiveActiveDialog();
+        });
+      }
+      // 2nd+ waits: no popup — the token-bag widget shows a spinner on the button.
     }
 
     // Opponent accepted reactive — I was waiting, now they are active
@@ -198,7 +263,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       body: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(child: Text(
           "Your opponent's token was drawn.\n"
-          "Spend 1 AP to become the active player\n"
+          "Spend 1 CP to become the active player\n"
           "and activate one of your units first.",
           style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.6))),
         const SizedBox(width: 12),
@@ -207,7 +272,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
           decoration: BoxDecoration(
             border: Border.all(
               color: apColor.withValues(alpha: m.myCP > 0 ? 0.55 : 0.25))),
-          child: Text('${m.myCP} AP',
+          child: Text('${m.myCP} CP',
             style: GoogleFonts.cinzel(
               color: m.myCP > 0 ? apColor : apColor.withValues(alpha: 0.4),
               fontSize: 11))),
@@ -217,7 +282,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
           Navigator.pop(context);
           m.respondReactive(false);
         }, outlined: true),
-        SheetAction('React  −1 AP', gold, m.myCP > 0 ? () {
+        SheetAction('React  −1 CP', gold, m.myCP > 0 ? () {
           Navigator.pop(context);
           m.respondReactive(true);
         } : null),
@@ -230,7 +295,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       title: 'Reactive Activation',
       body: Text(
         'Your token was drawn. Your opponent is now deciding\n'
-        'whether to spend 1 AP to activate one of their units first.',
+        'whether to spend 1 CP to activate one of their units first.',
         style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.6)),
       actions: [SheetAction('OK', gold, () => Navigator.pop(context))]);
   }
@@ -346,7 +411,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     showAetherraSheet<void>(context,
       title: 'Reactive Activation',
       body: Text(
-        'Your opponent spent 1 AP for a Reactive Activation.\n'
+        'Your opponent spent 1 CP for a Reactive Activation.\n'
         'They are now the active player and will activate\n'
         'one of their units first.',
         style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.6)),
@@ -695,17 +760,19 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
         leadingWidth: 48,
         leading: NavBtn(icon: Icons.home_outlined, onPressed: _confirmLeave),
         actions: [
-          NavBtn(
-            icon: Icons.history,
-            onPressed: () => showActionLogSheet(context, m.actionLog)),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text('Round ${m.round}',
-              style: GoogleFonts.cinzel(color: gold, fontSize: 12))),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: _ConnectionDot(
-              connected: m.opponentConnected, active: m.gameActive)),
+          if (m.gameActive) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Center(child: Text('Round ${m.round}',
+                style: GoogleFonts.cinzel(color: gold, fontSize: 12)))),
+            KeyedSubtree(key: _keyLog,
+              child: NavBtn(
+                icon: Icons.history, width: 36,
+                onPressed: () => showActionLogSheet(context, m.actionLog))),
+            NavBtn(
+              icon: Icons.help_outline, width: 36,
+              onPressed: () => showTutorial(context, _tutorialSteps())),
+          ],
         ],
       ),
       body: Column(children: [
@@ -787,19 +854,22 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
         // ── Game active ───────────────────────────────────────────────────
         if (m.gameActive) ...[
           // TOKEN BAG
-          Container(
-            margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-            decoration: BoxDecoration(
-              color: dark,
-              border: Border.all(color: gold.withValues(alpha: 0.35))),
-            child: _OnlineTokenBagWidget(
-              manager: m, bag: bag, myColor: myColor, oppColor: oppColor)),
+          KeyedSubtree(key: _keyTokens,
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              decoration: BoxDecoration(
+                color: dark,
+                border: Border.all(color: gold.withValues(alpha: 0.35))),
+              child: _OnlineTokenBagWidget(
+                manager: m, bag: bag, myColor: myColor, oppColor: oppColor,
+                activeWaitSeen: _hasSeenActiveReactivePopup))),
 
           // ARMY BANNER (hides on scroll, switches with tab)
-          _OnlineScrollHiddenBanner(
-            manager: m,
-            scrollCtrl: _unitTabIdx == 0 ? _myScrollCtrl : _oppScrollCtrl,
-            tabIdx: _unitTabIdx),
+          KeyedSubtree(key: _keyBanner,
+            child: _OnlineScrollHiddenBanner(
+              manager: m,
+              scrollCtrl: _unitTabIdx == 0 ? _myScrollCtrl : _oppScrollCtrl,
+              tabIdx: _unitTabIdx)),
 
           // HEADER BAR (same as offline)
           SizedBox(height: 70,
@@ -808,13 +878,15 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 // AP — left: own (editable) or opponent (read-only)
-                _unitTabIdx == 0 ? _onlineCpWidget(m) : _onlineOppCpWidget(m),
+                KeyedSubtree(key: _keyCP,
+                  child: _unitTabIdx == 0 ? _onlineCpWidget(m) : _onlineOppCpWidget(m)),
                 const Spacer(),
                 // Dice
-                _OnlineDiceButton(manager: m),
+                KeyedSubtree(key: _keyDice,
+                  child: _OnlineDiceButton(manager: m)),
                 const Spacer(),
                 // Next Round + End Game — right
-                SizedBox(width: 110, child: Column(
+                SizedBox(key: _keyNextRnd, width: 110, child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -835,7 +907,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
               ]))),
 
           // UNIT AREA: tab-switched (My Army / Opponent)
-          Expanded(child: Stack(children: [
+          Expanded(child: KeyedSubtree(key: _keyUnits, child: Stack(children: [
             IndexedStack(
               index: _unitTabIdx,
               children: [
@@ -892,23 +964,24 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter, end: Alignment.topCenter,
                   colors: [AppColors.dark, Colors.transparent]))))),
-          ])),
+          ]))),
 
           // TAB BAR
-          Container(
-            color: AppColors.dark,
-            child: Row(children: [
-              Expanded(child: _OnlineTab(
-                icon: Icons.shield_outlined,
-                label: '${m.myArmyName} (${m.myUnits.where((u) => !u.isEliminated).length})',
-                selected: _unitTabIdx == 0,
-                onTap: () => setState(() => _unitTabIdx = 0))),
-              Expanded(child: _OnlineTab(
-                icon: Icons.people_outline,
-                label: '${m.opponentArmyName.isNotEmpty ? m.opponentArmyName : 'Opponent'} (${m.opponentUnits.where((u) => !u.isEliminated).length})',
-                selected: _unitTabIdx == 1,
-                onTap: () => setState(() => _unitTabIdx = 1))),
-            ])),
+          KeyedSubtree(key: _keyTabBar,
+            child: Container(
+              color: AppColors.dark,
+              child: Row(children: [
+                Expanded(child: _OnlineTab(
+                  icon: Icons.shield_outlined,
+                  label: '${m.myArmyName} (${m.myUnits.where((u) => !u.isEliminated).length})',
+                  selected: _unitTabIdx == 0,
+                  onTap: () => setState(() => _unitTabIdx = 0))),
+                Expanded(child: _OnlineTab(
+                  icon: Icons.people_outline,
+                  label: '${m.opponentArmyName.isNotEmpty ? m.opponentArmyName : 'Opponent'} (${m.opponentUnits.where((u) => !u.isEliminated).length})',
+                  selected: _unitTabIdx == 1,
+                  onTap: () => setState(() => _unitTabIdx = 1))),
+              ]))),
         ],
       ]));
   }
@@ -925,7 +998,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
           Text('${m.myCP}',
             style: GoogleFonts.cinzel(
               color: const Color(0xFFC8A0E0), fontSize: 20)),
-          Text('AP', style: GoogleFonts.cinzel(
+          Text('CP', style: GoogleFonts.cinzel(
             color: const Color(0xFFC8A0E0).withValues(alpha: 0.6),
             fontSize: 9, letterSpacing: 1)),
         ]),
@@ -945,7 +1018,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
           Text('${m.opponentCP}',
             style: GoogleFonts.cinzel(
               color: const Color(0xFFC8A0E0), fontSize: 20)),
-          Text('AP', style: GoogleFonts.cinzel(
+          Text('CP', style: GoogleFonts.cinzel(
             color: const Color(0xFFC8A0E0).withValues(alpha: 0.6),
             fontSize: 9, letterSpacing: 1)),
         ]),
@@ -993,9 +1066,11 @@ class _OnlineTokenBagWidget extends StatelessWidget {
   final TokenBag bag;
   final Color myColor;
   final Color oppColor;
+  final bool activeWaitSeen;
   const _OnlineTokenBagWidget({
     required this.manager, required this.bag,
-    required this.myColor, required this.oppColor});
+    required this.myColor, required this.oppColor,
+    required this.activeWaitSeen});
 
   static const gold = AppColors.gold;
   static const grey = AppColors.grey;
@@ -1010,8 +1085,6 @@ class _OnlineTokenBagWidget extends StatelessWidget {
     final isReactive = m.pendingType == OnlinePendingType.reactive;
     final iAmActive  = isReactive &&
         m.pendingData?['fromPlayer']    == myRoleName; // my token was drawn, I must wait
-    final iAmAwaiter = isReactive &&
-        m.pendingData?['awaitingPlayer'] == myRoleName; // I may react
     return Container(
       color: AppColors.dark,
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
@@ -1033,16 +1106,31 @@ class _OnlineTokenBagWidget extends StatelessWidget {
           ]),
         ]),
         const SizedBox(height: 8),
-        // Single Draw Token button
-        Row(children: [
-          Expanded(child: _BagBtn(
-            label: 'Draw Token ($remaining)',
-            color: canDraw ? gold : grey,
-            onTap: canDraw ? () { HapticFeedback.lightImpact(); m.drawToken(); } : null)),
-        ]),
-        // ── Reactive activation status ─────────────────────────────────────
-        // Drawer: spinner while opponent decides
-        if (iAmActive) ...[
+        // Draw Token button — or waiting spinner when opponent is deciding (2nd+ event)
+        if (iAmActive && activeWaitSeen)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              border: Border.all(color: gold.withValues(alpha: 0.28))),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              SizedBox(width: 13, height: 13,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2, color: gold.withValues(alpha: 0.5))),
+              const SizedBox(width: 10),
+              Text("Waiting for Opponent’s Decision",
+                style: GoogleFonts.cinzel(
+                  color: gold.withValues(alpha: 0.55), fontSize: 11)),
+            ]))
+        else
+          Row(children: [
+            Expanded(child: _BagBtn(
+              label: "Draw Token ($remaining)",
+              color: canDraw ? gold : grey,
+              onTap: canDraw ? () { HapticFeedback.lightImpact(); m.drawToken(); } : null)),
+          ]),
+        // Spinner below button for first reactive wait (popup was shown, user dismissed it)
+        if (iAmActive && !activeWaitSeen) ...[
           const SizedBox(height: 8),
           Row(children: [
             SizedBox(
@@ -1053,26 +1141,6 @@ class _OnlineTokenBagWidget extends StatelessWidget {
             Text("Waiting for opponent’s decision...",
               style: GoogleFonts.cinzel(
                 color: gold.withValues(alpha: 0.55), fontSize: 10)),
-          ]),
-        ],
-        // Awaiter: inline response buttons (fallback if popup was dismissed)
-        if (iAmAwaiter) ...[
-          const SizedBox(height: 8),
-          Text('Opponent drew their token — react before they activate?',
-            style: GoogleFonts.cinzel(
-              color: grey, fontSize: 10, height: 1.4)),
-          const SizedBox(height: 6),
-          Row(children: [
-            Expanded(child: _BagBtn(
-              label: 'Pass',
-              color: grey,
-              outlined: true,
-              onTap: () => m.respondReactive(false))),
-            const SizedBox(width: 8),
-            Expanded(child: _BagBtn(
-              label: 'React  −1 AP',
-              color: m.myCP > 0 ? gold : grey,
-              onTap: m.myCP > 0 ? () => m.respondReactive(true) : null)),
           ]),
         ],
       ]));
@@ -1281,7 +1349,7 @@ class _OnlineGameBannerState extends State<_OnlineGameBanner> {
                       _buildUnitsBtn(m.myUnits.length),
                       const Spacer(),
                       Row(mainAxisSize: MainAxisSize.min, children: [
-                        BannerStat('${m.myCP}',  'AP'),
+                        BannerStat('${m.myCP}',  'CP'),
                         BannerStat('$aliveAtk', 'ATK'),
                         BannerStat('$aliveDef', 'DEF'),
                         BannerStat('$aliveRng', 'SHO'),
@@ -1465,7 +1533,7 @@ class _OnlineOppBannerState extends State<_OnlineOppBanner> {
                       _buildUnitsBtn(m.opponentUnits.length),
                       const Spacer(),
                       Row(mainAxisSize: MainAxisSize.min, children: [
-                        BannerStat('${m.opponentCP}', 'AP'),
+                        BannerStat('${m.opponentCP}', 'CP'),
                         BannerStat('$aliveAtk', 'ATK'),
                         BannerStat('$aliveDef', 'DEF'),
                         BannerStat('$aliveRng', 'SHO'),
@@ -1803,7 +1871,9 @@ class _OnlineDndTile extends StatelessWidget {
           local.dx < box.size.width / 2 ? absIdx : absIdx + 1, grp);
       },
       builder: (_, __, ___) => draggable(
-        _MyUnitCard(unit: unit, manager: manager, myColor: myColor)));
+        _MyUnitCard(unit: unit, manager: manager, myColor: myColor,
+          strStatKey: absIdx == allUnits.indexWhere((u) => !u.isEliminated && !u.activated)
+              ? _OnlineGameScreenState._keyStr : null)));
   }
 }
 
@@ -1942,8 +2012,9 @@ class _MyUnitCard extends StatelessWidget {
   final GameUnit unit;
   final OnlineGameManager manager;
   final Color myColor;
+  final Key? strStatKey;
   const _MyUnitCard({required this.unit, required this.manager,
-    required this.myColor});
+    required this.myColor, this.strStatKey});
 
   static const gold = AppColors.gold;
   static const grey = AppColors.grey;
@@ -1959,7 +2030,6 @@ class _MyUnitCard extends StatelessWidget {
     // Reactive pending from MY draw — must wait for opponent's decision first
     final reactiveBlocking = manager.pendingType == OnlinePendingType.reactive &&
         manager.pendingData?['fromPlayer'] == manager.myRole?.name;
-    final conPct          = u.con > 0 ? unit.currentCon / u.con : 0.0;
     const activatedColor  = Color(0xFF6B7A8D);
 
     return Container(
@@ -1972,10 +2042,76 @@ class _MyUnitCard extends StatelessWidget {
       child: Column(children: [
         UnitCard(
           unit: u,
+          strStatKey: strStatKey,
           customName: unit.armyUnit.customName,
           photoBase64: unit.armyUnit.photoBase64,
           bgColor: unit.armyUnit.bgColor,
           lore: unit.armyUnit.lore,
+          note: eliminated ? null : unit.note,
+          onNoteTap: eliminated ? null : () => _showNoteSheet(context, unit, manager),
+          currentCon: unit.currentCon,
+          onStrTap: eliminated ? null : () {
+            final maxCon = u.con;
+            final curCon = unit.currentCon;
+            showModalBottomSheet<void>(
+              context: context,
+              backgroundColor: AppColors.dark,
+              builder: (_) {
+                var hovered = -1;
+                return StatefulBuilder(
+                  builder: (ctx, setSt) => Padding(
+                    padding: EdgeInsets.fromLTRB(
+                        16, 16, 16, MediaQuery.of(context).padding.bottom + 20),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Center(child: Container(
+                        width: 40, height: 4,
+                        decoration: BoxDecoration(
+                          color: grey.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(2)))),
+                      const SizedBox(height: 14),
+                      Text('STR — ${unit.displayName}',
+                        style: GoogleFonts.cinzel(
+                          color: gold, fontSize: 14,
+                          fontWeight: FontWeight.w600, letterSpacing: 1)),
+                      const SizedBox(height: 16),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        for (int v = 0; v <= maxCon; v++)
+                          MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            onEnter: (_) => setSt(() => hovered = v),
+                            onExit:  (_) => setSt(() => hovered = -1),
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                manager.adjustCon(unit.instanceId, v - curCon);
+                              },
+                              child: Container(
+                                width: 48, height: 48,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: v == curCon
+                                      ? gold.withValues(alpha: 0.12) : Colors.transparent,
+                                  border: Border.all(
+                                    color: v == curCon
+                                        ? gold : grey.withValues(alpha: 0.3),
+                                    width: v == curCon ? 1.5 : 1)),
+                                child: Text('$v',
+                                  style: GoogleFonts.cinzel(
+                                    color: v == curCon
+                                        ? gold
+                                        : hovered == v
+                                            ? Colors.white
+                                            : grey.withValues(alpha: 0.7),
+                                    fontSize: 18,
+                                    fontWeight: v == curCon
+                                        ? FontWeight.w700 : FontWeight.w400))))),
+                      ]),
+                    ]),
+                  ),
+                );
+              },
+            );
+          },
           dimmed: eliminated,
           onEdit: null,
           onAbilityUse: eliminated ? null : (String abilityName) {
@@ -1986,95 +2122,33 @@ class _MyUnitCard extends StatelessWidget {
             return () => manager.adjustCP(-cpCost);
           },
           hideBorder: true,
-          actions: const []),
-        LinearProgressIndicator(
-          value: conPct,
-          backgroundColor: AppColors.dark,
-          valueColor: AlwaysStoppedAnimation(
-            conPct > 0.5 ? const Color(0xFFA8C070)
-            : conPct > 0.25 ? const Color(0xFFD4A870)
-            : Colors.red),
-          minHeight: 3),
-        if (!eliminated)
-          ConditionBadges(
-            conditions: unit.conditions,
-            onToggle: (c) => manager.toggleCondition(unit.instanceId, c)),
-        if (!eliminated)
-          GestureDetector(
-            onTap: () => _showNoteSheet(context, unit, manager),
-            child: Container(
-              color: AppColors.dark,
-              padding: const EdgeInsets.fromLTRB(10, 3, 10, 3),
-              child: Row(children: [
-                Icon(
-                  unit.note.isNotEmpty ? Icons.sticky_note_2_outlined : Icons.add,
-                  size: 12,
-                  color: grey.withValues(alpha: unit.note.isNotEmpty ? 0.55 : 0.35)),
-                const SizedBox(width: 6),
-                Expanded(child: Text(
-                  unit.note.isNotEmpty ? unit.note : 'Add note…',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.cinzel(
-                    color: unit.note.isNotEmpty
-                        ? grey.withValues(alpha: 0.7)
-                        : grey.withValues(alpha: 0.3),
-                    fontSize: 10,
-                    fontStyle: unit.note.isNotEmpty
-                        ? FontStyle.normal : FontStyle.italic))),
-              ]))),
-        Container(
-          color: AppColors.dark,
-          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-          child: Row(children: [
-            Text('STR', style: GoogleFonts.cinzel(color: grey, fontSize: 10)),
-            const SizedBox(width: 10),
-            _GlowIcon(
-              icon: Icons.remove_circle_outline,
-              color: eliminated
-                ? grey.withValues(alpha: 0.3)
-                : Colors.red.withValues(alpha: 0.7),
-              size: 22,
-              onTap: eliminated ? () {} : () { HapticFeedback.lightImpact(); manager.adjustCon(unit.instanceId, -1); }),
-            const SizedBox(width: 8),
-            Text('${unit.currentCon}/${u.con}',
-              style: GoogleFonts.cinzel(
-                color: eliminated ? grey : gold, fontSize: 14)),
-            const SizedBox(width: 8),
-            _GlowIcon(
-              icon: Icons.add_circle_outline,
-              color: unit.currentCon >= u.con
-                ? grey.withValues(alpha: 0.3) : const Color(0xFFA8C070),
-              size: 22,
-              disabled: unit.currentCon >= u.con,
-              onTap: unit.currentCon >= u.con
-                ? () {} : () { HapticFeedback.lightImpact(); manager.adjustCon(unit.instanceId, 1); }),
-            const Spacer(),
-            // "ACTIVE" badge for the currently selected unit
-            if (isCurrentlyActive) ...[
-              const Icon(Icons.flag, color: gold, size: 12),
-              const SizedBox(width: 3),
-              Text('ACTIVE',
-                style: GoogleFonts.cinzel(
-                  color: gold, fontSize: 9, letterSpacing: 1)),
-              const SizedBox(width: 8),
-            ],
-            // Activate button: enabled only when my turn AND no unit activated yet this draw
-            if (!eliminated && !activated)
-              _ActivateBtn(
-                label: 'Activate',
-                color: gold,
-                onTap: isMyTurn && manager.activeUnitInstanceId == null && !reactiveBlocking
-                  ? () { HapticFeedback.mediumImpact(); manager.activateUnit(unit.instanceId); }
-                  : null),
-            // Ready button: only for the unit activated this draw (not earlier draws)
-            if (!eliminated && activated && isCurrentlyActive)
-              _ActivateBtn(
-                label: 'Ready',
-                color: activatedColor,
-                onTap: () { HapticFeedback.selectionClick(); manager.deactivateUnit(unit.instanceId); }),
-          ])),
-      ]));
+          actions: const [],
+          activateOverlay: eliminated ? null : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (isCurrentlyActive) ...[
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.flag, color: gold, size: 10,
+                    shadows: [Shadow(color: Colors.black87, blurRadius: 6)]),
+                  const SizedBox(width: 2),
+                  Text('ACTIVE', style: GoogleFonts.cinzel(
+                    color: gold, fontSize: 8, letterSpacing: 1,
+                    shadows: [const Shadow(color: Colors.black87, blurRadius: 6)])),
+                ]),
+                const SizedBox(height: 3),
+              ],
+              if (!activated)
+                _ActivateBtn(
+                  label: 'Activate', color: gold,
+                  onTap: isMyTurn && manager.activeUnitInstanceId == null && !reactiveBlocking
+                    ? () { HapticFeedback.mediumImpact(); manager.activateUnit(unit.instanceId); }
+                    : null),
+              if (activated && isCurrentlyActive)
+                _ActivateBtn(
+                  label: 'Ready', color: activatedColor,
+                  onTap: () { HapticFeedback.selectionClick(); manager.deactivateUnit(unit.instanceId); }),
+            ]))]));
   }
 
   static void _showNoteSheet(BuildContext ctx, GameUnit unit, OnlineGameManager manager) {
@@ -2260,12 +2334,12 @@ class _OppUnitCard extends StatelessWidget {
           value: conPct,
           backgroundColor: AppColors.dark,
           valueColor: AlwaysStoppedAnimation(
-            conPct > 0.5 ? const Color(0xFFA8C070)
-            : conPct > 0.25 ? const Color(0xFFD4A870)
-            : Colors.red),
+            unit.currentCon >= u.con
+              ? const Color(0xFF2ECC71)
+              : unit.currentCon <= 1
+                  ? const Color(0xFFEF5350)
+                  : const Color(0xFFFF8C00)),
           minHeight: 3),
-        if (unit.conditions.isNotEmpty)
-          ConditionBadges(conditions: unit.conditions),
         Container(
           color: AppColors.dark,
           padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
@@ -2296,9 +2370,8 @@ class _GlowIcon extends StatefulWidget {
   final Color color;
   final double size;
   final VoidCallback onTap;
-  final bool disabled;
   const _GlowIcon({required this.icon, required this.color,
-    required this.size, required this.onTap, this.disabled = false});
+    required this.size, required this.onTap});
   @override State<_GlowIcon> createState() => _GlowIconState();
 }
 class _GlowIconState extends State<_GlowIcon> {
@@ -2308,8 +2381,7 @@ class _GlowIconState extends State<_GlowIcon> {
     MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit:  (_) => setState(() => _hovered = false),
-      cursor: widget.disabled
-        ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTapDown:   (_) => setState(() => _pressed = true),
         onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
@@ -2317,10 +2389,10 @@ class _GlowIconState extends State<_GlowIcon> {
         child: SizedBox(
           width: widget.size + 8, height: widget.size + 8,
           child: Center(child: AnimatedScale(
-            scale: _pressed && !widget.disabled ? 0.80 : 1.0,
+            scale: _pressed ? 0.80 : 1.0,
             duration: const Duration(milliseconds: 80),
             child: Icon(widget.icon,
-              color: !widget.disabled && (_hovered || _pressed)
+              color: (_hovered || _pressed)
                 ? widget.color
                 : widget.color.withValues(alpha: 0.5),
               size: widget.size))))));
@@ -2354,13 +2426,13 @@ class _ActivateBtnState extends State<_ActivateBtn> {
             ? (Matrix4.identity()..scaleByDouble(0.88, 0.88, 1.0, 1.0))
             : Matrix4.identity(),
           transformAlignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
             color: !enabled
-              ? widget.color.withValues(alpha: 0.18)
+              ? widget.color.withValues(alpha: 0.12)
               : _pressed
-                ? widget.color.withValues(alpha: 0.45)
-                : widget.color.withValues(alpha: _hovered ? 0.65 : 1.0)),
+                ? widget.color.withValues(alpha: 0.65)
+                : widget.color.withValues(alpha: _hovered ? 0.85 : 0.45)),
           child: Text(widget.label,
             style: GoogleFonts.cinzel(
               color: enabled ? AppColors.dark : AppColors.dark.withValues(alpha: 0.35),
@@ -2422,9 +2494,7 @@ class _BagBtn extends StatefulWidget {
   final String label;
   final Color color;
   final VoidCallback? onTap;
-  final bool outlined; // black bg + color border + color text
-  const _BagBtn({required this.label, required this.color, this.onTap,
-    this.outlined = false});
+  const _BagBtn({required this.label, required this.color, this.onTap});
   @override State<_BagBtn> createState() => _BagBtnState();
 }
 class _BagBtnState extends State<_BagBtn> {
@@ -2433,17 +2503,11 @@ class _BagBtnState extends State<_BagBtn> {
   @override Widget build(BuildContext context) {
     final active = widget.onTap != null;
     final c = widget.color;
-    final bg = widget.outlined
-      ? (_pressed ? c.withValues(alpha: 0.15)
-          : _hovered ? c.withValues(alpha: 0.10)
-          : Colors.transparent)
-      : active
+    final bg = active
         ? (_pressed ? c.withValues(alpha: 0.45)
             : c.withValues(alpha: _hovered ? 0.65 : 1.0))
         : c.withValues(alpha: 0.2);
-    final textColor = widget.outlined
-      ? (active ? c : c.withValues(alpha: 0.35))
-      : (active ? AppColors.dark : c.withValues(alpha: 0.55));
+    final textColor = active ? AppColors.dark : c.withValues(alpha: 0.55);
     return MouseRegion(
       onEnter: (_) { if (active) setState(() => _hovered = true); },
       onExit:  (_) => setState(() => _hovered = false),
@@ -2460,13 +2524,7 @@ class _BagBtnState extends State<_BagBtn> {
           transformAlignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
-            color: bg,
-            border: widget.outlined
-              ? Border.all(
-                  color: active
-                    ? (_hovered || _pressed ? c : c.withValues(alpha: 0.4))
-                    : c.withValues(alpha: 0.25))
-              : null),
+            color: bg),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -3083,9 +3141,11 @@ class _OnlineRoundSummaryContent extends StatelessWidget {
 
   Widget _unitRow(GameUnit u) {
     final maxCon   = u.armyUnit.unit.con;
-    final pct      = maxCon > 0 ? u.currentCon / maxCon : 0.0;
-    final conColor = pct > 0.5 ? const Color(0xFFA8C070)
-      : pct > 0.25 ? const Color(0xFFD4A870) : Colors.red;
+    final conColor = u.currentCon >= maxCon
+        ? const Color(0xFF2ECC71)
+        : u.currentCon <= 1
+            ? const Color(0xFFEF5350)
+            : const Color(0xFFFF8C00);
     final isElim   = u.isEliminated;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -3121,7 +3181,7 @@ class _OnlineRoundSummaryContent extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(2),
                     child: LinearProgressIndicator(
-                      value: pct.toDouble(),
+                      value: maxCon > 0 ? u.currentCon / maxCon : 0.0,
                       backgroundColor: AppColors.greyLight.withValues(alpha: 0.2),
                       valueColor: AlwaysStoppedAnimation(conColor)))),
                 const SizedBox(width: 8),
@@ -3236,44 +3296,6 @@ class _OnlineTabState extends State<_OnlineTab> {
   }
 }
 
-// ── Connection dot ────────────────────────────────────────────────────────────
-class _ConnectionDot extends StatefulWidget {
-  final bool connected;
-  final bool active;
-  const _ConnectionDot({required this.connected, required this.active});
-  @override State<_ConnectionDot> createState() => _ConnectionDotState();
-}
-
-class _ConnectionDotState extends State<_ConnectionDot>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this,
-      duration: const Duration(seconds: 2))..repeat(reverse: true);
-  }
-  @override void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override Widget build(BuildContext context) {
-    final color = !widget.active
-        ? Colors.orange
-        : (widget.connected ? Colors.green : Colors.red);
-    return FadeTransition(
-      opacity: widget.connected
-          ? const AlwaysStoppedAnimation(1.0)
-          : Tween(begin: 0.3, end: 1.0).animate(_ctrl),
-      child: Tooltip(
-        message: !widget.active
-            ? 'Waiting for opponent'
-            : (widget.connected ? 'Connected' : 'Opponent disconnected'),
-        child: Container(
-          width: 8, height: 8,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle, color: color))));
-  }
-}
-
 
 // ── Online end-game summary content ──────────────────────────────────────────
 class _OnlineEndGameSummaryContent extends StatelessWidget {
@@ -3296,7 +3318,7 @@ class _OnlineEndGameSummaryContent extends StatelessWidget {
         _SummaryStatTile('Round',     '$round'),
         _SummaryStatTile('Surviving', '${alive.length} / ${units.length}'),
         _SummaryStatTile('STR Lost',  '$lostSTR / $totalSTR'),
-        if (cpSpent != null) _SummaryStatTile('AP Spent', '$cpSpent'),
+        _SummaryStatTile('CP Spent', '${cpSpent ?? 0}'),
       ]),
       if (eliminated.isNotEmpty) ...[
         const SizedBox(height: 24),

@@ -528,7 +528,7 @@ class _AssignedCard extends StatelessWidget {
                 _statBox('SHO', '${u['rng'] ?? 0}',     z('rng')),
                 _statBox('MOB', '${u['mob'] ?? 0}',     z('mob')),
                 _statBox('STR', '${u['con_val'] ?? 0}',  z('con_val')),
-                _statBox('AP',  '${u['cp'] ?? 0}',      z('cp')),
+                _statBox('CP',  '${u['cp'] ?? 0}',      z('cp')),
               ])),
             const SizedBox(height: 3),
             // 2-row ability layout with remove button as trailing

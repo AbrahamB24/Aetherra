@@ -70,8 +70,21 @@ class _AbilityBadgeState extends State<_AbilityBadge> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(widget.ability, style: GoogleFonts.cinzel(
-              color: gold, fontSize: 11, fontWeight: FontWeight.w700)),
+            Row(children: [
+              Expanded(child: Text(widget.ability, style: GoogleFonts.cinzel(
+                color: gold, fontSize: 11, fontWeight: FontWeight.w700))),
+              if (isCmd) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: gold.withValues(alpha: 0.18),
+                    border: Border.all(color: gold.withValues(alpha: 0.6))),
+                  child: Text('$cpCost CP', style: GoogleFonts.cinzel(
+                    color: gold, fontSize: 9,
+                    fontWeight: FontWeight.w700, letterSpacing: 1))),
+              ],
+            ]),
             if (desc.isNotEmpty) ...[
               const SizedBox(height: 5),
               Text(desc, style: GoogleFonts.cinzel(
@@ -214,8 +227,14 @@ Color typeColor(String type) {
   }
 }
 
-Widget _statBox(String label, String value, bool dimmed, Color grey) {
-  return Container(
+Widget _statBox(String label, String value, bool dimmed, Color grey, {
+  Color? valueColor,
+  VoidCallback? onTap,
+}) {
+  final textColor = dimmed
+      ? Colors.white.withValues(alpha: 0.2)
+      : (valueColor ?? Colors.white);
+  Widget box = Container(
     margin: const EdgeInsets.only(right: 1),
     padding: const EdgeInsets.symmetric(vertical: 3),
     color: AppColors.dark,
@@ -225,11 +244,18 @@ Widget _statBox(String label, String value, bool dimmed, Color grey) {
         color: dimmed ? grey.withValues(alpha: 0.35) : grey)),
       Text(value, textAlign: TextAlign.center, style: GoogleFonts.cinzel(
         fontSize: 16, fontWeight: FontWeight.w600,
-        color: dimmed
-          ? Colors.white.withValues(alpha: 0.2)
-          : Colors.white,
+        color: textColor,
+        decoration: onTap != null && !dimmed ? TextDecoration.underline : null,
+        decorationColor: textColor.withValues(alpha: 0.4),
+        decorationStyle: TextDecorationStyle.dotted,
         fontFeatures: const [ui.FontFeature.tabularFigures()])),
     ]));
+  if (onTap != null && !dimmed) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: onTap, child: box));
+  }
+  return box;
 }
 
 // 2-row ability layout — row 2 uses an inner LayoutBuilder so the trailing
@@ -346,6 +372,11 @@ class UnitCard extends StatefulWidget {
   final String? photoBase64;
   final String? bgColor;
   final String? lore;              // unit lore (ArmyUnit.lore) — book icon, read-only
+  final String? note;              // battle note — sticky-note icon, bottom-right of photo
+  final VoidCallback? onNoteTap;   // if null, note icon is hidden
+  final int? currentCon;           // live STR value — shows instead of unit.con when set
+  final VoidCallback? onStrTap;    // if set, STR stat box is tappable
+  final Key? strStatKey;
   final bool dimmed;
   final Color? accentColor;
   final List<Widget>? actions;
@@ -354,13 +385,15 @@ class UnitCard extends StatefulWidget {
   final bool locked;
   final bool hideBorder;
   final VoidCallback? Function(String)? onAbilityUse;
+  final Widget? activateOverlay;
   const UnitCard({super.key,
     required this.unit, this.customName, this.photoBase64,
-    this.bgColor, this.lore,
+    this.bgColor, this.lore, this.note, this.onNoteTap,
+    this.currentCon, this.onStrTap, this.strStatKey,
     this.dimmed = false,
     this.accentColor, this.actions, this.onEdit,
     this.trailing, this.locked = false, this.hideBorder = false,
-    this.onAbilityUse});
+    this.onAbilityUse, this.activateOverlay});
   @override State<UnitCard> createState() => _UnitCardWidgetState();
 }
 
@@ -368,6 +401,7 @@ class _UnitCardWidgetState extends State<UnitCard> with TickerProviderStateMixin
   // official lore (unit.lore)
   bool _loreOpen        = false;
   bool _loreIconHovered = false;
+  bool _noteIconHovered = false;
   late final AnimationController _loreHCtrl;
   late final AnimationController _loreFCtrl;
   late final CurvedAnimation     _loreHFactor;
@@ -450,7 +484,6 @@ class _UnitCardWidgetState extends State<UnitCard> with TickerProviderStateMixin
             SizedBox(width: 80, height: 143,
               child: Stack(children: [
                 Positioned.fill(child: photoArea),
-                // Lore icon — bottom-left
                 // Lore icon — bottom-left, always visible (dim if no official lore)
                 Positioned(bottom: 8, left: 8,
                   child: GestureDetector(
@@ -468,6 +501,30 @@ class _UnitCardWidgetState extends State<UnitCard> with TickerProviderStateMixin
                           _loreOpen ? Icons.menu_book : Icons.menu_book_outlined,
                           color: gold, size: 17,
                           shadows: const [Shadow(color: Colors.black87, blurRadius: 8)]))))),
+                // Note icon — bottom-right, only when onNoteTap is wired up
+                if (widget.onNoteTap != null)
+                  Positioned(bottom: 8, right: 8,
+                    child: GestureDetector(
+                      onTap: widget.onNoteTap,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        onEnter: (_) => setState(() => _noteIconHovered = true),
+                        onExit:  (_) => setState(() => _noteIconHovered = false),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 80),
+                          opacity: (widget.note?.isNotEmpty == true)
+                            ? (_noteIconHovered ? 1.0 : 0.75)
+                            : (_noteIconHovered ? 0.55 : 0.3),
+                          child: Icon(
+                            (widget.note?.isNotEmpty == true)
+                              ? Icons.sticky_note_2
+                              : Icons.sticky_note_2_outlined,
+                            color: gold, size: 17,
+                            shadows: const [Shadow(color: Colors.black87, blurRadius: 8)]))))),
+                // Activate / Ready overlay — top-center of photo
+                if (widget.activateOverlay != null)
+                  Positioned(top: 6, left: 0, right: 0,
+                    child: Center(child: widget.activateOverlay!)),
               ])),
             Expanded(child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 3, 6, 3),
@@ -499,10 +556,45 @@ class _UnitCardWidgetState extends State<UnitCard> with TickerProviderStateMixin
                   Expanded(child: _statBox('DEF', '${unit.def}', unit.def == 0, grey)),
                   Expanded(child: _statBox('SHO', '${unit.rng}', unit.rng == 0, grey)),
                   Expanded(child: _statBox('MOB', '${unit.mob}', unit.mob == 0, grey)),
-                  Expanded(child: _statBox('STR', '${unit.con}', unit.con == 0, grey)),
-                  Expanded(child: _statBox('AP',  '${unit.cp}',  unit.cp  == 0, grey)),
+                  Expanded(child: () {
+                    final cur = widget.currentCon;
+                    final Widget statBox;
+                    if (cur == null) {
+                      statBox = _statBox('STR', '${unit.con}', unit.con == 0, grey);
+                    } else {
+                      final col = cur >= unit.con
+                          ? const Color(0xFF2ECC71)
+                          : cur <= 1
+                              ? const Color(0xFFEF5350)
+                              : const Color(0xFFFF8C00);
+                      statBox = _statBox('STR', '$cur', cur == 0, grey,
+                          valueColor: col, onTap: widget.onStrTap);
+                    }
+                    return widget.strStatKey != null
+                        ? SizedBox(key: widget.strStatKey, child: statBox)
+                        : statBox;
+                  }()),
+                  Expanded(child: _statBox('CP',  '${unit.cp}',  unit.cp  == 0, grey)),
                 ]),
-                const SizedBox(height: 3),
+                () {
+                  final cur = widget.currentCon;
+                  if (cur == null) return const SizedBox(height: 3);
+                  final maxCon = unit.con;
+                  final pct = maxCon > 0 ? (cur / maxCon).clamp(0.0, 1.0) : 0.0;
+                  final col = cur >= maxCon
+                      ? const Color(0xFF2ECC71)
+                      : cur <= 1
+                          ? const Color(0xFFEF5350)
+                          : const Color(0xFFFF8C00);
+                  return LayoutBuilder(builder: (_, c) => Stack(children: [
+                    Container(height: 2, color: col.withValues(alpha: 0.15)),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: 2,
+                      width: c.maxWidth * pct,
+                      color: col.withValues(alpha: widget.dimmed ? 0.25 : 0.75)),
+                  ]));
+                }(),
                 _abilityRows(abs, tColor: tc, trailing: widget.trailing, onAbilityUse: widget.onAbilityUse),
                 if (widget.actions != null && widget.actions!.isNotEmpty) ...[
                   const SizedBox(height: 4),
@@ -572,7 +664,7 @@ class AbilityCard extends StatelessWidget {
             child: ColoredBox(color: tc.withValues(alpha: 0.10),
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 if (cpCost > 0) ...[
-                  Text('$cpCost AP',
+                  Text('$cpCost CP',
                     style: GoogleFonts.cinzel(
                       color: tc, fontSize: 13, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
@@ -777,7 +869,7 @@ class _RosterCardState extends State<RosterCard> with TickerProviderStateMixin {
                     Expanded(child: _statBox('SHO', '${u['rng'] ?? 0}',     z('rng'),     grey)),
                     Expanded(child: _statBox('MOB', '${u['mob'] ?? 0}',     z('mob'),     grey)),
                     Expanded(child: _statBox('STR', '${u['con_val'] ?? 0}',  z('con_val'), grey)),
-                    Expanded(child: _statBox('AP',  '${u['cp'] ?? 0}',      z('cp'),      grey)),
+                    Expanded(child: _statBox('CP',  '${u['cp'] ?? 0}',      z('cp'),      grey)),
                   ]),
                   const SizedBox(height: 3),
                   _abilityRows(abs, tColor: tc, trailing: effectiveTrailing),
@@ -1227,11 +1319,15 @@ class _PlusNBadgeState extends State<_PlusNBadge> {
     _overlay = OverlayEntry(builder: (ctx) {
       final screen = MediaQuery.of(ctx).size;
       const maxW = 304.0;
-      final left = pos.dx.clamp(0.0, (screen.width - maxW).clamp(0.0, screen.width));
+      final left       = pos.dx.clamp(0.0, (screen.width - maxW).clamp(0.0, screen.width));
       final spaceBelow = screen.height - (pos.dy + sz.height);
       final showAbove  = spaceBelow < 200 && pos.dy > spaceBelow;
       final topPos     = pos.dy + sz.height + 5;
       final botPos     = screen.height - pos.dy + 5;
+      final maxH       = (showAbove
+          ? pos.dy - 15
+          : screen.height - topPos - 15)
+          .clamp(80.0, 520.0);
       return Stack(children: [
         Positioned.fill(child: GestureDetector(
           onTap: _hideOverlay,
@@ -1251,20 +1347,25 @@ class _PlusNBadgeState extends State<_PlusNBadge> {
                 decoration: BoxDecoration(
                   color: AppColors.dark,
                   border: Border.all(color: gold.withValues(alpha: 0.5))),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (int i = 0; i < items.length; i++) ...[
-                      if (i > 0) Divider(height: 1, color: gold.withValues(alpha: 0.15)),
-                      _AbilityEntry(
-                        item: items[i],
-                        onUsed: items[i].onUse == null ? null : () {
-                          _hideOverlay();
-                          items[i].onUse!();
-                        }),
-                    ],
-                  ],
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxH),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (int i = 0; i < items.length; i++) ...[
+                          if (i > 0) Divider(height: 1, color: gold.withValues(alpha: 0.15)),
+                          _AbilityEntry(
+                            item: items[i],
+                            onUsed: items[i].onUse == null ? null : () {
+                              _hideOverlay();
+                              items[i].onUse!();
+                            }),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1404,7 +1505,7 @@ class _AbilityEntry extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: gold.withValues(alpha: 0.18),
                   border: Border.all(color: gold.withValues(alpha: 0.6))),
-                child: Text('${item.cpCost} AP',
+                child: Text('${item.cpCost} CP',
                   style: GoogleFonts.cinzel(
                     color: gold, fontSize: 9,
                     fontWeight: FontWeight.w700, letterSpacing: 1))),

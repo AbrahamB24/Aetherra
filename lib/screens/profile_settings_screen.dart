@@ -365,11 +365,13 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           _infoRow(icon: Icons.info_outline, label: 'Version', value: _kAppVersion),
 
           const SizedBox(height: 40),
-          Container(height: 1, color: Colors.red.withValues(alpha: 0.2)),
+          Align(alignment: Alignment.centerLeft,
+            child: Container(height: 1, width: 48,
+              color: AppColors.gold.withValues(alpha: 0.35))),
           const SizedBox(height: 24),
 
           // ── Danger Zone ───────────────────────────────────────────────────
-          _label('Data & Account', danger: true),
+          _label('Data & Account'),
           const SizedBox(height: 12),
           OutlinedButton(
             onPressed: _exporting ? null : _exportData,
@@ -461,3 +463,4 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           style: GoogleFonts.cinzel(color: gold.withValues(alpha: 0.55), fontSize: 13)),
       ]));
 }
+

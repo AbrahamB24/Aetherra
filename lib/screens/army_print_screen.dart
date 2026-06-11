@@ -432,7 +432,7 @@ class _ArmyPrintScreenState extends State<ArmyPrintScreen> {
 
     final stats = [
       ('${army.units.length}',                             'Units'),
-      ('${army.units.fold(0, (s, u) => s + u.unit.cp)}',  'AP'),
+      ('${army.units.fold(0, (s, u) => s + u.unit.cp)}',  'CP'),
       ('${army.units.fold(0, (s, u) => s + u.unit.atk)}', 'ATK'),
       ('${army.units.fold(0, (s, u) => s + u.unit.def)}', 'DEF'),
       ('${army.units.fold(0, (s, u) => s + u.unit.rng)}', 'SHO'),
@@ -616,7 +616,7 @@ class _ArmyPrintScreenState extends State<ArmyPrintScreen> {
                   statBox('SHO', '${unit.rng}', unit.rng == 0),
                   statBox('MOB', '${unit.mob}', unit.mob == 0),
                   statBox('STR', '${unit.con}', unit.con == 0),
-                  statBox('AP',  '${unit.cp}',  unit.cp  == 0),
+                  statBox('CP',  '${unit.cp}',  unit.cp  == 0),
                 ]),
                 if (unit.abilities.isNotEmpty) ...[
                   pw.SizedBox(height: 3),

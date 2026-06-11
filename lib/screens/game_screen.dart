@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 import '../services/bg_remover.dart';
 import '../widgets/photo_crop_dialog.dart';
 import '../widgets/unit_card.dart';
-import '../widgets/condition_badges.dart';
 import '../widgets/nav_btn.dart';
 import '../widgets/action_log_sheet.dart';
+import '../widgets/tutorial_overlay.dart';
 import '../widgets/d20_icon.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -35,11 +35,47 @@ const _kUnitBgPresets = [
   '#9870CC', '#70C0C0', '#CCAA38', '#C07898',
 ];
 
-class GameScreen extends StatelessWidget {
+class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
+  @override State<GameScreen> createState() => _GameScreenState();
+}
 
-  static const gold  = AppColors.gold;
-        static const grey  = AppColors.grey;
+class _GameScreenState extends State<GameScreen> {
+  // Tutorial keys — stable across rebuilds
+  final _keyBanner  = GlobalKey(debugLabel: 'tut-banner');
+  final _keyCP      = GlobalKey(debugLabel: 'tut-cp');
+  final _keyDice    = GlobalKey(debugLabel: 'tut-dice');
+  final _keyNextRnd = GlobalKey(debugLabel: 'tut-nextRnd');
+  final _keyUnits   = GlobalKey(debugLabel: 'tut-units');
+  final _keyLog     = GlobalKey(debugLabel: 'tut-log');
+  static final _keyStr = GlobalKey(debugLabel: 'tut-str');
+
+  static const gold = AppColors.gold;
+  static const grey = AppColors.grey;
+
+  List<TutorialStep> _tutorialSteps() => [
+    TutorialStep(targetKey: _keyBanner,
+      title: 'Army Banner',
+      body: 'Shows live stats for your army — total points, CP and how many units are still active.'),
+    TutorialStep(targetKey: _keyCP,
+      title: 'Command Points (CP)',
+      body: 'Your CP pool. Use +/− to adjust it manually, for example after a reactive activation. Command abilities deduct CP automatically when used.'),
+    TutorialStep(targetKey: _keyDice,
+      title: 'Dice',
+      body: 'Choose how many dice to roll, then tap to roll them. Results appear on screen and are saved to the action log.'),
+    TutorialStep(targetKey: _keyNextRnd,
+      title: 'Round Controls',
+      body: 'Tap \'Next Round\' to see a round summary and advance. \'End Game\' ends the session the same way.'),
+    TutorialStep(targetKey: _keyUnits,
+      title: 'Unit Cards',
+      body: 'Tap Activate in the unit photo to mark it as activated, or Ready to deactivate it. Set conditions, add a note or drag to reorder.'),
+    TutorialStep(targetKey: _keyStr,
+      title: 'STR',
+      body: 'Tap the STR value to open a number picker and set it directly.'),
+    TutorialStep(targetKey: _keyLog,
+      title: 'Action Log',
+      body: 'Full log of all rolls and events in this session. Filter by type or jump to a specific round.'),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -88,22 +124,23 @@ class GameScreen extends StatelessWidget {
           title: Text(gs.saveName ?? gs.armyName ?? 'Game', style: GoogleFonts.cinzel(
             color: gold, fontSize: 14, letterSpacing: 1)),
           actions: [
-            // Auto-save indicator
             if (game.autoSaving)
               const Padding(
                 padding: EdgeInsets.only(right: 4),
                 child: SizedBox(width: 14, height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5, color: gold))),
-            // Action log button
-            NavBtn(
-              icon: Icons.history,
-              onPressed: () => _showActionLog(ctx, game)),
-            // Round indicator
             Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text('Round ${gs.round}',
-                style: GoogleFonts.cinzel(color: gold, fontSize: 12))),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Center(child: Text('Round ${gs.round}',
+                style: GoogleFonts.cinzel(color: gold, fontSize: 12)))),
+            KeyedSubtree(key: _keyLog,
+              child: NavBtn(
+                icon: Icons.history, width: 36,
+                onPressed: () => _showActionLog(ctx, game))),
+            NavBtn(
+              icon: Icons.help_outline, width: 36,
+              onPressed: () => showTutorial(ctx, _tutorialSteps())),
           ],
         ),
         body: _GameDndOuter(
@@ -120,7 +157,8 @@ class GameScreen extends StatelessWidget {
                 playerCol: playerCol, enemyCol: enemyCol)),
 
           // ── ARMY BANNER (hides on scroll) ────────────────────────
-          _ScrollHiddenBanner(gs: gs, game: game),
+          KeyedSubtree(key: _keyBanner,
+            child: _ScrollHiddenBanner(gs: gs, game: game)),
 
           // ── HEADER BAR ───────────────────────────────────────────
           SizedBox(height: 70,
@@ -129,13 +167,13 @@ class GameScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 // CP — left
-                _cpWidget(game, gs),
-                // Dice — fixed same height as header content (58px)
+                KeyedSubtree(key: _keyCP, child: _cpWidget(game, gs)),
+                // Dice
                 const Spacer(),
-                const _DiceButton(),
+                KeyedSubtree(key: _keyDice, child: const _DiceButton()),
                 const Spacer(),
-                // Next Round + Ready All — right, stacked, equal width
-                SizedBox(width: 110, child: Column(
+                // Next Round + End Game — right, stacked, equal width
+                SizedBox(key: _keyNextRnd, width: 110, child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -196,7 +234,7 @@ class GameScreen extends StatelessWidget {
               ]))),
 
           // ── UNIT LIST ────────────────────────────────────────────
-          Expanded(child: Stack(children: [
+          Expanded(child: KeyedSubtree(key: _keyUnits, child: Stack(children: [
             Listener(
               onPointerMove:   (e) { if (_GameDndOuterState._dragging != null) _GameDndOuterState._updateScroll(e.position.dy); },
               onPointerUp:     (_) => _GameDndOuterState._stopScroll(),
@@ -238,7 +276,7 @@ class GameScreen extends StatelessWidget {
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
                       colors: [AppColors.dark, Colors.transparent]))))),
-          ])),
+          ]))),   // Stack → KeyedSubtree → Expanded
           ])),
           );  // Scaffold
     });
@@ -253,7 +291,7 @@ class GameScreen extends StatelessWidget {
       Column(mainAxisSize: MainAxisSize.min, children: [
         Text('${gs.commandPoints}',
           style: GoogleFonts.cinzel(color: const Color(0xFFC8A0E0), fontSize: 20)),
-        Text('AP', style: GoogleFonts.cinzel(
+        Text('CP', style: GoogleFonts.cinzel(
           color: const Color(0xFFC8A0E0).withValues(alpha: 0.6), fontSize: 9, letterSpacing: 1)),
       ]),
       const SizedBox(width: 10),
@@ -412,18 +450,17 @@ class _UnitCard extends StatelessWidget {
   final GameUnit unit;
   final GameNotifier game;
   final Color playerCol;
-  const _UnitCard({required this.unit, required this.game, required this.playerCol});
+  final Key? strStatKey;
+  const _UnitCard({required this.unit, required this.game, required this.playerCol, this.strStatKey});
 
   static const gold  = AppColors.gold;
   static const grey  = AppColors.grey;
 
   @override
   Widget build(BuildContext context) {
-    final u              = unit.armyUnit.unit;
-    final eliminated     = unit.isEliminated;
-    final activated      = unit.activated;
-    final conPct         = u.con > 0 ? unit.currentCon / u.con : 0.0;
-    const activatedColor = Color(0xFF6B7A8D);
+    final u          = unit.armyUnit.unit;
+    final eliminated = unit.isEliminated;
+    final activated  = unit.activated;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -432,13 +469,78 @@ class _UnitCard extends StatelessWidget {
         border: Border.all(
           color: (eliminated ? grey : typeColor(u.type)).withValues(alpha: eliminated ? 0.2 : 0.4),
           width: 1.5)),
-      child: Column(children: [
-        UnitCard(
+      child: UnitCard(
           unit: u,
+          strStatKey: strStatKey,
           customName: unit.armyUnit.customName,
           photoBase64: unit.armyUnit.photoBase64,
           bgColor: unit.armyUnit.bgColor,
           lore: unit.armyUnit.lore,
+          note: eliminated ? null : unit.note,
+          onNoteTap: eliminated ? null : () => _showNoteSheet(context, unit, game),
+          currentCon: unit.currentCon,
+          onStrTap: eliminated ? null : () {
+            final maxCon = u.con;
+            final curCon = unit.currentCon;
+            showModalBottomSheet<void>(
+              context: context,
+              backgroundColor: AppColors.dark,
+              builder: (_) {
+                var hovered = -1;
+                return StatefulBuilder(
+                  builder: (ctx, setSt) => Padding(
+                    padding: EdgeInsets.fromLTRB(
+                        16, 16, 16, MediaQuery.of(context).padding.bottom + 20),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Center(child: Container(
+                        width: 40, height: 4,
+                        decoration: BoxDecoration(
+                          color: grey.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(2)))),
+                      const SizedBox(height: 14),
+                      Text('STR — ${unit.displayName}',
+                        style: GoogleFonts.cinzel(
+                          color: gold, fontSize: 14,
+                          fontWeight: FontWeight.w600, letterSpacing: 1)),
+                      const SizedBox(height: 16),
+                      Wrap(spacing: 8, runSpacing: 8, children: [
+                        for (int v = 0; v <= maxCon; v++)
+                          MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            onEnter: (_) => setSt(() => hovered = v),
+                            onExit:  (_) => setSt(() => hovered = -1),
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                game.adjustCon(unit.instanceId, v - curCon);
+                              },
+                              child: Container(
+                                width: 48, height: 48,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: v == curCon
+                                      ? gold.withValues(alpha: 0.12) : Colors.transparent,
+                                  border: Border.all(
+                                    color: v == curCon
+                                        ? gold : grey.withValues(alpha: 0.3),
+                                    width: v == curCon ? 1.5 : 1)),
+                                child: Text('$v',
+                                  style: GoogleFonts.cinzel(
+                                    color: v == curCon
+                                        ? gold
+                                        : hovered == v
+                                            ? Colors.white
+                                            : grey.withValues(alpha: 0.7),
+                                    fontSize: 18,
+                                    fontWeight: v == curCon
+                                        ? FontWeight.w700 : FontWeight.w400))))),
+                      ]),
+                    ]),
+                  ),
+                );
+              },
+            );
+          },
           dimmed: eliminated,
           onEdit: eliminated ? null : () => showGameEditDialog(context, unit, game),
           onAbilityUse: eliminated ? null : (String abilityName) {
@@ -449,60 +551,12 @@ class _UnitCard extends StatelessWidget {
             return () => game.adjustCP(-cpCost);
           },
           hideBorder: true,
-          actions: const []),
-        LinearProgressIndicator(
-          value: conPct,
-          backgroundColor: AppColors.dark,
-          valueColor: AlwaysStoppedAnimation(
-            conPct > 0.5 ? const Color(0xFFA8C070)
-            : conPct > 0.25 ? const Color(0xFFD4A870)
-            : Colors.red),
-          minHeight: 3),
-        if (!eliminated)
-          ConditionBadges(
-            conditions: unit.conditions,
-            onToggle: (c) => game.toggleCondition(unit.instanceId, c)),
-        if (!eliminated)
-          _NoteRow(
-            note: unit.note,
-            onEdit: () => _showNoteSheet(context, unit, game)),
-        Container(
-          color: AppColors.dark,
-          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-          child: Row(children: [
-            Text('STR', style: GoogleFonts.cinzel(color: grey, fontSize: 10)),
-            const SizedBox(width: 10),
-            _GlowIcon(
-              icon: Icons.remove_circle_outline,
-              color: eliminated ? grey.withValues(alpha: 0.3) : Colors.red.withValues(alpha: 0.7),
-              size: 22,
-              onTap: eliminated ? () {} : () { HapticFeedback.lightImpact(); game.adjustCon(unit.instanceId, -1); }),
-            const SizedBox(width: 8),
-            Text('${unit.currentCon}/${u.con}',
-              style: GoogleFonts.cinzel(
-                color: eliminated ? grey : gold, fontSize: 14)),
-            const SizedBox(width: 8),
-            _GlowIcon(
-              icon: Icons.add_circle_outline,
-              color: unit.currentCon >= u.con
-                ? grey.withValues(alpha: 0.3) : const Color(0xFFA8C070),
-              size: 22,
-              disabled: unit.currentCon >= u.con,
-              onTap: unit.currentCon >= u.con ? () {}
-                : () { HapticFeedback.lightImpact(); game.adjustCon(unit.instanceId, 1); }),
-            const Spacer(),
-            if (!eliminated && !activated)
-              _ActivateBtn(
-                label: 'Activate',
-                color: gold,
-                onTap: () { HapticFeedback.mediumImpact(); game.activateUnit(unit.instanceId); }),
-            if (!eliminated && activated)
-              _ActivateBtn(
-                label: 'Ready',
-                color: activatedColor,
-                onTap: () { HapticFeedback.selectionClick(); game.deactivateUnit(unit.instanceId); }),
-          ])),
-      ]));
+          actions: const [],
+          activateOverlay: eliminated ? null : activated
+              ? _ActivateBtn(label: 'Ready', color: const Color(0xFF6B7A8D),
+                  onTap: () { HapticFeedback.selectionClick(); game.deactivateUnit(unit.instanceId); })
+              : _ActivateBtn(label: 'Activate', color: AppColors.gold,
+                  onTap: () { HapticFeedback.mediumImpact(); game.activateUnit(unit.instanceId); })));
   }
 
   static void _showNoteSheet(BuildContext ctx, GameUnit unit, GameNotifier game) {
@@ -553,39 +607,6 @@ class _UnitCard extends StatelessWidget {
   }
 }
 
-// ── Note row ─────────────────────────────────────────────────────────────────
-class _NoteRow extends StatelessWidget {
-  final String note;
-  final VoidCallback onEdit;
-  const _NoteRow({required this.note, required this.onEdit});
-
-  @override
-  Widget build(BuildContext context) {
-    final hasNote = note.isNotEmpty;
-    return GestureDetector(
-      onTap: onEdit,
-      child: Container(
-        color: AppColors.dark,
-        padding: const EdgeInsets.fromLTRB(10, 3, 10, 3),
-        child: Row(children: [
-          Icon(
-            hasNote ? Icons.sticky_note_2_outlined : Icons.add,
-            size: 12,
-            color: AppColors.grey.withValues(alpha: hasNote ? 0.55 : 0.35)),
-          const SizedBox(width: 6),
-          Expanded(child: Text(
-            hasNote ? note : 'Add note…',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.cinzel(
-              color: hasNote
-                  ? AppColors.grey.withValues(alpha: 0.7)
-                  : AppColors.grey.withValues(alpha: 0.3),
-              fontSize: 10,
-              fontStyle: hasNote ? FontStyle.normal : FontStyle.italic))),
-        ])));
-  }
-}
 
 // ── Collapsible group section ─────────────────────────────────────────────
 class _GameGroupSection extends StatefulWidget {
@@ -1018,7 +1039,9 @@ class _GameDndTile extends StatelessWidget {
         _GameDndOuterState.setInsert(
           local.dx < box.size.width / 2 ? absIdx : absIdx + 1, grp);
       },
-      builder: (_, __, ___) => draggable(_UnitCard(unit: unit, game: game, playerCol: playerCol)));
+      builder: (_, __, ___) => draggable(_UnitCard(unit: unit, game: game, playerCol: playerCol,
+        strStatKey: absIdx == allUnits.indexWhere((u) => !u.isEliminated && !u.activated)
+            ? _GameScreenState._keyStr : null)));
   }
 }
 
@@ -1729,9 +1752,8 @@ class _GlowIcon extends StatefulWidget {
   final Color color;
   final double size;
   final VoidCallback onTap;
-  final bool disabled;
   const _GlowIcon({required this.icon, required this.color,
-    required this.size, required this.onTap, this.disabled = false});
+    required this.size, required this.onTap});
   @override State<_GlowIcon> createState() => _GlowIconState();
 }
 class _GlowIconState extends State<_GlowIcon> {
@@ -1741,7 +1763,7 @@ class _GlowIconState extends State<_GlowIcon> {
     MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit:  (_) => setState(() => _hovered = false),
-      cursor: widget.disabled ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTapDown:   (_) => setState(() => _pressed = true),
         onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
@@ -1749,14 +1771,15 @@ class _GlowIconState extends State<_GlowIcon> {
         child: SizedBox(
           width: widget.size + 8, height: widget.size + 8,
           child: Center(child: AnimatedScale(
-            scale: _pressed && !widget.disabled ? 0.80 : 1.0,
+            scale: _pressed ? 0.80 : 1.0,
             duration: const Duration(milliseconds: 80),
             child: Icon(widget.icon,
-              color: !widget.disabled && (_hovered || _pressed)
+              color: (_hovered || _pressed)
                 ? widget.color
                 : widget.color.withValues(alpha: 0.5),
               size: widget.size))))));
 }
+
 
 
 
@@ -1785,11 +1808,11 @@ class _ActivateBtnState extends State<_ActivateBtn> {
           duration: const Duration(milliseconds: 80),
           transform: _pressed ? (Matrix4.identity()..scaleByDouble(0.88, 0.88, 1.0, 1.0)) : Matrix4.identity(),
           transformAlignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
             color: _pressed
-              ? widget.color.withValues(alpha: 0.45)
-              : widget.color.withValues(alpha: _hovered ? 0.65 : 1.0)),
+              ? widget.color.withValues(alpha: 0.65)
+              : widget.color.withValues(alpha: _hovered ? 0.85 : 0.45)),
           child: Text(widget.label,
             style: GoogleFonts.cinzel(
               color: AppColors.dark,
@@ -1947,7 +1970,6 @@ class _GameBannerState extends State<_GameBanner> {
   bool _unitsHovered  = false;
   Widget? _cachedImg;
   static const gold = AppColors.gold;
-  static const grey = AppColors.grey;
 
   @override
   void initState() {
@@ -1987,19 +2009,6 @@ class _GameBannerState extends State<_GameBanner> {
     catch (_) { return null; }
   }
 
-  Widget _stat(String value, String label) => SizedBox(
-    width: 28,
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(value,
-        textAlign: TextAlign.center,
-        style: GoogleFonts.cinzel(
-          color: gold, fontSize: 13, fontWeight: FontWeight.w600,
-          fontFeatures: const [FontFeature.tabularFigures()])),
-      Text(label,
-        textAlign: TextAlign.center,
-        style: GoogleFonts.cinzel(
-          color: grey.withValues(alpha: 0.55), fontSize: 8, letterSpacing: 0.5)),
-    ]));
 
   Widget _buildUnitsBtn(int count) => GestureDetector(
     onTap: () => setState(() => _unitsExpanded = !_unitsExpanded),
@@ -2117,12 +2126,12 @@ class _GameBannerState extends State<_GameBanner> {
                       _buildUnitsBtn(widget.gs.units.length),
                       const Spacer(),
                       Row(mainAxisSize: MainAxisSize.min, children: [
-                        _stat('$aliveCP',  'AP'),
-                        _stat('$aliveAtk', 'ATK'),
-                        _stat('$aliveDef', 'DEF'),
-                        _stat('$aliveRng', 'SHO'),
-                        _stat('$aliveMob', 'MOB'),
-                        _stat('$aliveCon', 'STR'),
+                        BannerStat('$aliveCP',  'CP'),
+                        BannerStat('$aliveAtk', 'ATK'),
+                        BannerStat('$aliveDef', 'DEF'),
+                        BannerStat('$aliveRng', 'SHO'),
+                        BannerStat('$aliveMob', 'MOB'),
+                        BannerStat('$aliveCon', 'STR'),
                       ]),
                     ]),
                   ]))),
@@ -2347,10 +2356,11 @@ class _RoundSummaryContent extends StatelessWidget {
 
   Widget _unitRow(GameUnit u) {
     final maxCon   = u.armyUnit.unit.con;
-    final pct      = maxCon > 0 ? u.currentCon / maxCon : 0.0;
-    final conColor = pct > 0.5
-      ? const Color(0xFFA8C070)
-      : pct > 0.25 ? const Color(0xFFD4A870) : Colors.red;
+    final conColor = u.currentCon >= maxCon
+        ? const Color(0xFF2ECC71)
+        : u.currentCon <= 1
+            ? const Color(0xFFEF5350)
+            : const Color(0xFFFF8C00);
     final isElim   = u.isEliminated;
 
     return Padding(
@@ -2399,7 +2409,7 @@ class _RoundSummaryContent extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(2),
                       child: LinearProgressIndicator(
-                        value: pct.toDouble(),
+                        value: maxCon > 0 ? u.currentCon / maxCon : 0.0,
                         backgroundColor: AppColors.greyLight.withValues(alpha: 0.2),
                         valueColor: AlwaysStoppedAnimation(conColor),
                       ),

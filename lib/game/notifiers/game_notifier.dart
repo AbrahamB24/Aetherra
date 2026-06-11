@@ -295,7 +295,9 @@ class GameNotifier extends ChangeNotifier {
   }
 
   void deactivateUnit(String instanceId) {
-    _unit(instanceId)?.deactivate();
+    final u = _unit(instanceId);
+    u?.deactivate();
+    if (u != null) _log('ready', '${u.displayName}: ready');
     notifyListeners();
     _autoSave();
   }

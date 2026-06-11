@@ -1452,7 +1452,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                 const SizedBox(width: 4),
                 _stI('STR', conCtrl, setS),
                 const SizedBox(width: 4),
-                _stI('AP', cpCtrl, setS),
+                _stI('CP', cpCtrl, setS),
               ]),
               const SizedBox(height: 10),
               Row(children: [

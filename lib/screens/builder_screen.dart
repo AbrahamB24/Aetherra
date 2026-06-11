@@ -427,7 +427,7 @@ class _BuilderScreenState extends State<BuilderScreen> {
                     _mStat('${army.units.fold(0, (s, u) => s + u.unit.def)}', 'DEF'),
                     _mStat('${army.units.fold(0, (s, u) => s + u.unit.rng)}', 'SHO'),
                     _mStat('${army.units.fold(0, (s, u) => s + u.unit.mob)}', 'MOB'),
-                    _mStat('${army.totalCP}', 'AP'),
+                    _mStat('${army.totalCP}', 'CP'),
                     if (army.isOverLimit) ...[
                       const SizedBox(width: 8),
                       Text('OVER', style: GoogleFonts.cinzel(color: Colors.red, fontSize: 13)),
@@ -840,14 +840,6 @@ class _BuilderScreenState extends State<BuilderScreen> {
         style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.5)),
       actions: [
         SheetAction('Cancel',      grey, () => Navigator.pop(context), outlined: true),
-        SheetAction('Exit',        grey, () {
-          Navigator.pop(context);
-          if (widget.showBack) {
-            Navigator.of(context).pop();
-          } else {
-            Navigator.of(context).popUntil((r) => r.isFirst);
-          }
-        }, outlined: true),
         SheetAction('Save & Exit', gold, () { Navigator.pop(context); _save(); }),
       ]);
   }

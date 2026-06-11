@@ -843,10 +843,13 @@ class _ArmyRowState extends State<_ArmyRow> {
   Widget build(BuildContext context) {
     final l           = widget.army;
     final name        = l['name'] as String? ?? 'Untitled';
-    final pts         = l['total_points'] as int? ?? 0;
     final ad          = l['army_data'] as Map<String, dynamic>? ?? {};
     final units       = (ad['units'] as List?)?.length ?? 0;
     final limit       = ad['limit'] as int? ?? 2500;
+    final pts = (ad['units'] as List? ?? []).fold<int>(0, (s, u) {
+      final uid = (u as Map<String, dynamic>)['unitId'] as String? ?? '';
+      return s + (GameDataService.toGameUnit(uid)?.cost ?? 0);
+    });
     final over        = pts > limit;
     final creatorName = ad['creator_name'] as String?;
     final lore        = ad['lore']  as String?;
@@ -979,7 +982,7 @@ class _ArmyRowState extends State<_ArmyRow> {
                                 ])))),
                           const Spacer(),
                           Row(mainAxisSize: MainAxisSize.min, children: [
-                            BannerStat('$_cp',   'AP'),
+                            BannerStat('$_cp',   'CP'),
                             BannerStat('$_atk',  'ATK'),
                             BannerStat('$_def',  'DEF'),
                             BannerStat('$_rng',  'SHO'),

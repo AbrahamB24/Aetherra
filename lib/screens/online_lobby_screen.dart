@@ -806,11 +806,16 @@ class _LobbyArmyCardState extends State<_LobbyArmyCard> {
   @override Widget build(BuildContext context) {
     final a           = widget.army;
     final name        = a['name'] as String? ?? '—';
-    final pts         = a['total_points'] as int? ?? 0;
     final raw         = a['army_data'];
     final ad          = raw is String ? jsonDecode(raw) as Map<String, dynamic>
                                       : (raw as Map<String, dynamic>? ?? {});
     final limit       = ad['limit'] as int? ?? 2500;
+    // Compute live from GameDataService so costs are always current (stored
+    // total_points can be 0 when army was saved before costs were populated).
+    final pts = (ad['units'] as List? ?? []).fold<int>(0, (s, u) {
+      final uid = (u as Map<String, dynamic>)['unitId'] as String? ?? '';
+      return s + (GameDataService.toGameUnit(uid)?.cost ?? 0);
+    });
     final creatorName = ad['creator_name'] as String?;
     final lore        = ad['lore'] as String?;
     final hasLore     = lore != null && lore.isNotEmpty;
@@ -920,7 +925,7 @@ class _LobbyArmyCardState extends State<_LobbyArmyCard> {
                             ])))),
                       const Spacer(),
                       Row(mainAxisSize: MainAxisSize.min, children: [
-                        BannerStat('$_cp',  'AP'),
+                        BannerStat('$_cp',  'CP'),
                         BannerStat('$_atk', 'ATK'),
                         BannerStat('$_def', 'DEF'),
                         BannerStat('$_rng', 'SHO'),

@@ -527,7 +527,7 @@ class _ArmyRowCardState extends State<_ArmyRowCard> {
                                 ])))),
                           const Spacer(),
                           Row(mainAxisSize: MainAxisSize.min, children: [
-                            BannerStat('$_cp',   'AP'),
+                            BannerStat('$_cp',   'CP'),
                             BannerStat('$_atk',  'ATK'),
                             BannerStat('$_def',  'DEF'),
                             BannerStat('$_rng',  'SHO'),

@@ -12,6 +12,7 @@ import 'my_factions_screen.dart';
 import 'online_lobby_screen.dart';
 import 'dev_screen.dart';
 import 'profile_settings_screen.dart';
+import 'stats_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -69,6 +70,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: const _PopupHoverItem(label: 'Profile Settings', color: AppColors.gold)),
                     PopupMenuItem(
                       padding: EdgeInsets.zero,
+                      onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const StatsScreen())),
+                      child: const _PopupHoverItem(label: 'Statistics', color: AppColors.gold)),
+                    PopupMenuItem(
+                      padding: EdgeInsets.zero,
                       onTap: () async {
                         try {
                           await Supabase.instance.client.auth.signOut();
@@ -81,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         }
                       },
-                      child: _PopupHoverItem(label: 'Sign Out', color: Colors.red)),
+                      child: const _PopupHoverItem(label: 'Sign Out', color: Colors.red)),
                   ],
                   child: Icon(Icons.settings_outlined,
                     color: _gearHovered ? gold : gold.withValues(alpha: 0.5),

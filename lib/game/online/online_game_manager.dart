@@ -425,6 +425,24 @@ class OnlineGameManager extends ChangeNotifier {
     });
   }
 
+  /// Called while waiting for the guest to join. Fetches the DB row and
+  /// applies it so the host transitions to gameActive even if Realtime missed the event.
+  Future<void> pollForStart() async {
+    if (_sessionId == null || _gameActive) return;
+    try {
+      final rows = await _supabase
+          .from('online_game_sessions')
+          .select()
+          .eq('id', _sessionId!)
+          .limit(1);
+      if ((rows as List).isNotEmpty) {
+        _onRemoteUpdate((rows as List<dynamic>).first as Map<String, dynamic>);
+      }
+    } catch (e) {
+      debugPrint('pollForStart error: $e');
+    }
+  }
+
   /// Called by the UI when the app returns to foreground.
   /// Re-subscribes the channel and fetches a fresh DB row to catch any
   /// updates that arrived while the app was backgrounded.
@@ -447,13 +465,28 @@ class OnlineGameManager extends ChangeNotifier {
     final oppKey   = _myRole == OnlineRole.host ? 'guest_state' : 'host_state';
     final prevRound = _round;
 
-    // Update opponent state
-    final oppData = _parseJsonField(row[oppKey]);
-    if (oppData != null) _loadOpponentState(oppData);
+    // Detect game start FIRST so notifyListeners() is reached even if state parsing fails.
+    final status = row['status'] as String?;
+    if (status == 'playing' && !_gameActive) {
+      _gameActive        = true;
+      _opponentConnected = row[_myRole == OnlineRole.host ? 'guest_id' : 'host_id'] != null;
+    }
+
+    // Update opponent state — wrapped so a parse failure never blocks notifyListeners().
+    try {
+      final oppData = _parseJsonField(row[oppKey]);
+      if (oppData != null) _loadOpponentState(oppData);
+    } catch (e) {
+      debugPrint('_loadOpponentState error: $e');
+    }
 
     // Update shared state
-    final shared = _parseJsonField(row['shared']);
-    if (shared != null) _loadSharedState(shared);
+    try {
+      final shared = _parseJsonField(row['shared']);
+      if (shared != null) _loadSharedState(shared);
+    } catch (e) {
+      debugPrint('_loadSharedState error: $e');
+    }
 
     // Round advanced via opponent confirming next round: reset my units too
     if (_round > prevRound) {
@@ -461,14 +494,6 @@ class OnlineGameManager extends ChangeNotifier {
       _myDiceRolls.clear();
       _resetActivationGate();
       _persistMyState();
-    }
-
-    final status = row['status'] as String?;
-
-    // Detect guest joining (host sees status change to 'playing')
-    if (status == 'playing' && !_gameActive) {
-      _gameActive        = true;
-      _opponentConnected = row[_myRole == OnlineRole.host ? 'guest_id' : 'host_id'] != null;
     }
 
     // Detect opponent leaving/saving while we are still active
@@ -597,6 +622,7 @@ class OnlineGameManager extends ChangeNotifier {
         'awaitingPlayer': reactingPlayer, // who may react
         'drawnTokenId':   t.id,
         'drawnTokenColor': t.color,
+        'eventId':        DateTime.now().millisecondsSinceEpoch.toString(),
       };
       _pendingType = OnlinePendingType.reactive;
       _pendingFrom = t.color;
@@ -624,7 +650,7 @@ class OnlineGameManager extends ChangeNotifier {
 
       // Deduct 1 AP
       _myCP = (_myCP - 1).clamp(0, _myInitialCP);
-      _log('reactive', 'Reactive activation (-1 AP → $_myCP)');
+      _log('reactive', 'Reactive activation (-1 CP → $_myCP)');
 
       // Draw MY token (no reactive popup for opponent)
       final myColor = _myRole == OnlineRole.host ? 'host' : 'guest';
@@ -862,9 +888,16 @@ class OnlineGameManager extends ChangeNotifier {
   }
 
   void deactivateUnit(String instanceId) {
-    _findUnit(instanceId)?.deactivate();
+    final u = _findUnit(instanceId);
+    u?.deactivate();
     if (_activeUnitInstanceId == instanceId) {
       _activeUnitInstanceId = null;
+    }
+    // Remove the matching activate log entry so undone activations don't appear
+    if (u != null) {
+      final idx = _actionLog.lastIndexWhere(
+          (e) => e.tag == 'activate' && e.text == '${u.displayName} activated');
+      if (idx != -1) _actionLog.removeAt(idx);
     }
     notifyListeners();
     _scheduleMyStatePersist();

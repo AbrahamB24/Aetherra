@@ -263,7 +263,7 @@ class _AbilityPickerSheetState extends State<AbilityPickerSheet> {
                   final costLabel = cost != 0
                       ? '${cost > 0 ? '+' : ''}$cost pts'
                       : cpCost != 0
-                          ? '${cpCost > 0 ? '+' : ''}$cpCost AP'
+                          ? '${cpCost > 0 ? '+' : ''}$cpCost CP'
                           : '';
 
                   return InkWell(
