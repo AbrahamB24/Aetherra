@@ -168,7 +168,6 @@ class _OnlineLobbyScreenState extends State<OnlineLobbyScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: dark,
     appBar: AppBar(
-      backgroundColor: dark,
       leading: NavBtn(
         icon: Icons.arrow_back,
         onPressed: () {

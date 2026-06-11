@@ -527,7 +527,7 @@ class _UnitCardWidgetState extends State<UnitCard> with TickerProviderStateMixin
                     child: Center(child: widget.activateOverlay!)),
               ])),
             Expanded(child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 3, 6, 3),
+              padding: const EdgeInsets.fromLTRB(8, 0, 6, 0),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -595,6 +595,7 @@ class _UnitCardWidgetState extends State<UnitCard> with TickerProviderStateMixin
                       color: col.withValues(alpha: widget.dimmed ? 0.25 : 0.75)),
                   ]));
                 }(),
+                const SizedBox(height: 6),
                 _abilityRows(abs, tColor: tc, trailing: widget.trailing, onAbilityUse: widget.onAbilityUse),
                 if (widget.actions != null && widget.actions!.isNotEmpty) ...[
                   const SizedBox(height: 4),

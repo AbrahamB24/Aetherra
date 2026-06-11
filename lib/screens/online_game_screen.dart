@@ -755,7 +755,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     return Scaffold(
       backgroundColor: dark,
       appBar: AppBar(
-        backgroundColor: AppColors.dark,
         toolbarHeight: 62,
         leadingWidth: 48,
         leading: NavBtn(icon: Icons.home_outlined, onPressed: _confirmLeave),
@@ -1202,29 +1201,12 @@ class _OnlineScrollHiddenBannerState extends State<_OnlineScrollHiddenBanner> {
         : _OnlineOppBanner(manager: widget.manager))));
 }
 
-// ── My army banner (matches _GameBanner from game_screen.dart exactly) ────────
-class _OnlineGameBanner extends StatefulWidget {
-  final OnlineGameManager manager;
-  const _OnlineGameBanner({required this.manager});
-  @override State<_OnlineGameBanner> createState() => _OnlineGameBannerState();
-}
-
-class _OnlineGameBannerState extends State<_OnlineGameBanner> {
+// ── Shared lore/units toggle buttons for both army banners ───────────────────
+mixin _BannerBtns<T extends StatefulWidget> on State<T> {
   bool _loreExpanded  = false;
   bool _loreHovered   = false;
   bool _unitsExpanded = false;
   bool _unitsHovered  = false;
-  Widget? _cachedImg;
-  static const gold = AppColors.gold;
-
-  @override void initState() {
-    super.initState();
-    final b64 = widget.manager.myImageB64;
-    if (b64 != null && b64.isNotEmpty) {
-      try { _cachedImg = buildCroppedPhotoDisplay(b64, AppColors.bannerW, AppColors.bannerH); }
-      catch (_) {}
-    }
-  }
 
   Widget _buildLoreBtn(bool hasLore) => GestureDetector(
     onTap: hasLore ? () => setState(() => _loreExpanded = !_loreExpanded) : null,
@@ -1237,7 +1219,7 @@ class _OnlineGameBannerState extends State<_OnlineGameBanner> {
         opacity: hasLore ? (_loreExpanded || _loreHovered ? 1.0 : 0.55) : 0.2,
         child: Icon(
           _loreExpanded ? Icons.menu_book : Icons.menu_book_outlined,
-          color: gold, size: 18,
+          color: AppColors.gold, size: 18,
           shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]))));
 
   Widget _buildUnitsBtn(int count) => GestureDetector(
@@ -1252,13 +1234,35 @@ class _OnlineGameBannerState extends State<_OnlineGameBanner> {
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Text('$count',
             style: GoogleFonts.cinzel(
-              color: gold, fontSize: 13,
+              color: AppColors.gold, fontSize: 13,
               shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
           const SizedBox(width: 3),
           Icon(_unitsExpanded ? Icons.group : Icons.group_outlined,
-            color: gold, size: 18,
+            color: AppColors.gold, size: 18,
             shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]),
         ]))));
+}
+
+
+// ── My army banner (matches _GameBanner from game_screen.dart exactly) ────────
+class _OnlineGameBanner extends StatefulWidget {
+  final OnlineGameManager manager;
+  const _OnlineGameBanner({required this.manager});
+  @override State<_OnlineGameBanner> createState() => _OnlineGameBannerState();
+}
+
+class _OnlineGameBannerState extends State<_OnlineGameBanner> with _BannerBtns<_OnlineGameBanner> {
+  Widget? _cachedImg;
+  static const gold = AppColors.gold;
+
+  @override void initState() {
+    super.initState();
+    final b64 = widget.manager.myImageB64;
+    if (b64 != null && b64.isNotEmpty) {
+      try { _cachedImg = buildCroppedPhotoDisplay(b64, AppColors.bannerW, AppColors.bannerH); }
+      catch (_) {}
+    }
+  }
 
   @override Widget build(BuildContext context) {
     final m        = widget.manager;
@@ -1391,11 +1395,7 @@ class _OnlineOppBanner extends StatefulWidget {
   @override State<_OnlineOppBanner> createState() => _OnlineOppBannerState();
 }
 
-class _OnlineOppBannerState extends State<_OnlineOppBanner> {
-  bool _loreExpanded  = false;
-  bool _loreHovered   = false;
-  bool _unitsExpanded = false;
-  bool _unitsHovered  = false;
+class _OnlineOppBannerState extends State<_OnlineOppBanner> with _BannerBtns<_OnlineOppBanner> {
   Widget? _cachedImg;
   String? _lastB64;
   static const gold = AppColors.gold;
@@ -1418,40 +1418,6 @@ class _OnlineOppBannerState extends State<_OnlineOppBanner> {
       catch (_) { _cachedImg = null; }
     } else { _cachedImg = null; }
   }
-
-  Widget _buildLoreBtn(bool hasLore) => GestureDetector(
-    onTap: hasLore ? () => setState(() => _loreExpanded = !_loreExpanded) : null,
-    child: MouseRegion(
-      cursor: hasLore ? SystemMouseCursors.click : MouseCursor.defer,
-      onEnter: hasLore ? (_) => setState(() => _loreHovered = true)  : null,
-      onExit:  hasLore ? (_) => setState(() => _loreHovered = false) : null,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 80),
-        opacity: hasLore ? (_loreExpanded || _loreHovered ? 1.0 : 0.55) : 0.2,
-        child: Icon(
-          _loreExpanded ? Icons.menu_book : Icons.menu_book_outlined,
-          color: gold, size: 18,
-          shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]))));
-
-  Widget _buildUnitsBtn(int count) => GestureDetector(
-    onTap: () => setState(() => _unitsExpanded = !_unitsExpanded),
-    child: MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _unitsHovered = true),
-      onExit:  (_) => setState(() => _unitsHovered = false),
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 80),
-        opacity: _unitsExpanded || _unitsHovered ? 1.0 : 0.55,
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text('$count',
-            style: GoogleFonts.cinzel(
-              color: gold, fontSize: 13,
-              shadows: const [Shadow(color: Colors.black87, blurRadius: 6)])),
-          const SizedBox(width: 3),
-          Icon(_unitsExpanded ? Icons.group : Icons.group_outlined,
-            color: gold, size: 18,
-            shadows: const [Shadow(color: Colors.black87, blurRadius: 6)]),
-        ]))));
 
   @override Widget build(BuildContext context) {
     final m        = widget.manager;
@@ -1717,9 +1683,7 @@ class _OnlineGroupGridState extends State<_OnlineGroupGrid> {
         final start    = r * cols;
         final end      = (start + cols).clamp(0, display.length);
         final rowItems = display.sublist(start, end);
-        rows.add(Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        rows.add(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             ...rowItems.asMap().entries.map((e) {
               final pad = EdgeInsets.only(left: e.key > 0 ? 8 : 0);
               if (e.value.isPlaceholder) {
@@ -1739,8 +1703,8 @@ class _OnlineGroupGridState extends State<_OnlineGroupGrid> {
             Expanded(child: DragTarget<GameUnit>(
               onWillAcceptWithDetails: (_) => false,
               onMove: (_) => _OnlineDndState.setInsert(grpEndIdx, widget.grp),
-              builder: (_, __, ___) => const SizedBox(height: 157))),
-          ])));
+              builder: (_, __, ___) => SizedBox(height: dragging != null ? 157 : 0))),
+          ]));
       }
 
       if (display.isEmpty) {
@@ -2039,8 +2003,7 @@ class _MyUnitCard extends StatelessWidget {
         border: Border.all(
           color: (eliminated ? grey : typeColor(u.type)).withValues(alpha: eliminated ? 0.2 : 0.4),
           width: 1.5)),
-      child: Column(children: [
-        UnitCard(
+      child: UnitCard(
           unit: u,
           strStatKey: strStatKey,
           customName: unit.armyUnit.customName,
@@ -2148,7 +2111,7 @@ class _MyUnitCard extends StatelessWidget {
                 _ActivateBtn(
                   label: 'Ready', color: activatedColor,
                   onTap: () { HapticFeedback.selectionClick(); manager.deactivateUnit(unit.instanceId); }),
-            ]))]));
+            ])));
   }
 
   static void _showNoteSheet(BuildContext ctx, GameUnit unit, OnlineGameManager manager) {
@@ -2301,15 +2264,12 @@ class _OppUnitCard extends StatelessWidget {
   final Color oppColor;
   const _OppUnitCard({super.key, required this.unit, required this.oppColor});
 
-  static const gold = AppColors.gold;
   static const grey = AppColors.grey;
 
   @override Widget build(BuildContext context) {
     final u          = unit.armyUnit.unit;
     final eliminated = unit.isEliminated;
     final activated  = unit.activated;
-    final conPct     = u.con > 0 ? unit.currentCon / u.con : 0.0;
-    const activatedColor = Color(0xFF6B7A8D);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -2318,48 +2278,28 @@ class _OppUnitCard extends StatelessWidget {
         border: Border.all(
           color: (eliminated ? grey : typeColor(u.type)).withValues(alpha: eliminated ? 0.2 : 0.4),
           width: 1.5)),
-      child: Column(children: [
-        UnitCard(
-          unit: u,
-          customName: unit.armyUnit.customName,
-          photoBase64: unit.armyUnit.photoBase64,
-          bgColor: unit.armyUnit.bgColor,
-          lore: unit.armyUnit.lore,
-          dimmed: eliminated,
-          onEdit: null,
-          onAbilityUse: null,
-          hideBorder: true,
-          actions: const []),
-        LinearProgressIndicator(
-          value: conPct,
-          backgroundColor: AppColors.dark,
-          valueColor: AlwaysStoppedAnimation(
-            unit.currentCon >= u.con
-              ? const Color(0xFF2ECC71)
-              : unit.currentCon <= 1
-                  ? const Color(0xFFEF5350)
-                  : const Color(0xFFFF8C00)),
-          minHeight: 3),
-        Container(
-          color: AppColors.dark,
-          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-          child: Row(children: [
-            Text('STR', style: GoogleFonts.cinzel(color: grey, fontSize: 10)),
-            const SizedBox(width: 10),
-            Text('${unit.currentCon}/${u.con}',
-              style: GoogleFonts.cinzel(
-                color: eliminated ? grey : gold, fontSize: 14)),
-            const Spacer(),
-            if (!eliminated && activated)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                color: activatedColor.withValues(alpha: 1.0),
-                child: Text('Active',
-                  style: GoogleFonts.cinzel(
-                    color: AppColors.dark,
-                    fontSize: 11, fontWeight: FontWeight.w600))),
-          ])),
-      ]));
+      child: UnitCard(
+        unit: u,
+        customName: unit.armyUnit.customName,
+        photoBase64: unit.armyUnit.photoBase64,
+        bgColor: unit.armyUnit.bgColor,
+        lore: unit.armyUnit.lore,
+        currentCon: unit.currentCon,
+        dimmed: eliminated,
+        onEdit: null,
+        onAbilityUse: null,
+        hideBorder: true,
+        actions: const [],
+        activateOverlay: (!eliminated && activated)
+          ? Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.flag, color: AppColors.gold, size: 10,
+                shadows: [Shadow(color: Colors.black87, blurRadius: 6)]),
+              const SizedBox(width: 2),
+              Text('ACTIVE', style: GoogleFonts.cinzel(
+                color: AppColors.gold, fontSize: 8, letterSpacing: 1,
+                shadows: [const Shadow(color: Colors.black87, blurRadius: 6)])),
+            ])
+          : null));
   }
 }
 

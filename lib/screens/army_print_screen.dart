@@ -684,7 +684,6 @@ class _ArmyPrintScreenState extends State<ArmyPrintScreen> {
     return Scaffold(
       backgroundColor: _dark,
       appBar: AppBar(
-        backgroundColor: AppColors.dark,
         leading: NavBtn(
           icon: Icons.arrow_back_ios_new,
           onPressed: () => Navigator.pop(context)),

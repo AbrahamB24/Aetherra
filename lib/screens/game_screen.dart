@@ -795,9 +795,7 @@ class _GameGroupGridState extends State<_GameGroupGrid> {
         final start    = r * cols;
         final end      = (start + cols).clamp(0, display.length);
         final rowItems = display.sublist(start, end);
-        rows.add(Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        rows.add(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             ...rowItems.asMap().entries.map((e) {
               final pad = EdgeInsets.only(left: e.key > 0 ? 8 : 0);
               if (e.value.isPlaceholder) {
@@ -817,8 +815,8 @@ class _GameGroupGridState extends State<_GameGroupGrid> {
             Expanded(child: DragTarget<GameUnit>(
               onWillAcceptWithDetails: (_) => false,
               onMove: (_) => _GameDndOuterState.setInsert(grpEndIdx, widget.grp),
-              builder: (_, __, ___) => const SizedBox(height: 157))),
-          ])));
+              builder: (_, __, ___) => SizedBox(height: dragging != null ? 157 : 0))),
+          ]));
       }
 
       // Empty group: show a large drop zone when dragging
