@@ -280,7 +280,7 @@ class _NewArmyScreenState extends State<NewArmyScreen> {
         }),
       if (_nameError) ...[
         const SizedBox(height: 8),
-        Text('A name is required.',
+        const Text('A name is required.',
           style: TextStyle(color: Colors.red, fontSize: 14)),
       ],
     ]);

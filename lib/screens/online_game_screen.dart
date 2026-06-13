@@ -322,6 +322,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     final who = m.pendingFrom == OnlineRole.host.name
         ? m.opponentArmyName : m.myArmyName;
     bool showingOpponent = false;
+    bool actionTaken = false;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -365,6 +366,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
               Row(children: [
                 Expanded(child: OutlinedButton(
                   onPressed: () {
+                    actionTaken = true;
                     Navigator.pop(context);
                     m.declineEndGame();
                   },
@@ -377,6 +379,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                 const SizedBox(width: 12),
                 Expanded(child: ElevatedButton(
                   onPressed: () async {
+                    actionTaken = true;
                     Navigator.pop(context);
                     await m.confirmEndGame();
                     if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
@@ -390,7 +393,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                     style: GoogleFonts.cinzel(
                       fontSize: 14, fontWeight: FontWeight.w600)))),
               ]),
-            ])))));
+            ]))))).whenComplete(() {
+      if (!actionTaken && mounted) m.declineEndGame();
+    });
   }
 
 
@@ -421,6 +426,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     final waitingNotifier = ValueNotifier<bool>(false);
     bool popScheduled = false;
     setState(() => _nextRoundSheetOpen = true);
+    bool sheetActionTaken = false;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -466,6 +472,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                       m.pendingType != OnlinePendingType.nextRound &&
                       !popScheduled) {
                     popScheduled = true;
+                    sheetActionTaken = true;
                     final accepted = m.round > _waitingForConfirmRound;
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (!mounted) return;
@@ -488,7 +495,10 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                   }
                   return Row(children: [
                     Expanded(child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        sheetActionTaken = true;
+                        Navigator.pop(context);
+                      },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: grey,
                         side: BorderSide(color: grey.withValues(alpha: 0.4)),
@@ -499,6 +509,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                     const SizedBox(width: 12),
                     Expanded(child: ElevatedButton(
                       onPressed: () async {
+                        sheetActionTaken = true;
                         setState(() {
                           _waitingForConfirm = true;
                           _waitingForConfirmRound = m.round;
@@ -517,7 +528,13 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                   ]);
                 }),
             ]))))).whenComplete(() {
-      if (mounted) setState(() => _nextRoundSheetOpen = false);
+      if (!mounted) return;
+      setState(() => _nextRoundSheetOpen = false);
+      if (!sheetActionTaken) {
+        // Dismissed without action (swipe/back) while request was pending → cancel
+        setState(() { _waitingForConfirm = false; });
+        m.declineNextRound();
+      }
     });
   }
 
@@ -526,6 +543,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     bool showingOpponent = false;
     final waitingNotifier = ValueNotifier<bool>(false);
     bool popScheduled = false;
+    bool sheetActionTaken = false;
     setState(() => _endGameSheetOpen = true);
     showModalBottomSheet<void>(
       context: ctx,
@@ -571,6 +589,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                       m.pendingType != OnlinePendingType.endGame &&
                       !popScheduled) {
                     popScheduled = true;
+                    sheetActionTaken = true;
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       // If accepted: _onManagerChange's popUntil(isFirst) already
                       // ran → mounted is false → skip. Declined: pop sheet + dialog.
@@ -596,7 +615,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        onPressed: () => _saveAndExit(ctx),
+                        onPressed: () { sheetActionTaken = true; _saveAndExit(ctx); },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: gold,
                           side: BorderSide(color: gold.withValues(alpha: 0.45)),
@@ -607,7 +626,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                     const SizedBox(height: 8),
                     Row(children: [
                       Expanded(child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
+                        onPressed: () { sheetActionTaken = true; Navigator.pop(ctx); },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: grey,
                           side: BorderSide(color: grey.withValues(alpha: 0.4)),
@@ -634,7 +653,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                   ]);
                 }),
             ]))))).whenComplete(() {
-      if (mounted) setState(() => _endGameSheetOpen = false);
+      if (!mounted) return;
+      setState(() => _endGameSheetOpen = false);
+      if (!sheetActionTaken) {
+        setState(() => _waitingForEndGame = false);
+        m.declineEndGame();
+      }
     });
   }
 
@@ -644,6 +668,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     final who = m.pendingFrom == OnlineRole.host.name
         ? m.opponentArmyName : m.myArmyName;
     bool showingOpponent = false;
+    bool confirmActionTaken = false;
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -688,6 +713,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
               Row(children: [
                 Expanded(child: OutlinedButton(
                   onPressed: () {
+                    confirmActionTaken = true;
                     Navigator.pop(context);
                     m.declineNextRound();
                   },
@@ -700,6 +726,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                 const SizedBox(width: 12),
                 Expanded(child: ElevatedButton(
                   onPressed: () {
+                    confirmActionTaken = true;
                     setState(() => _confirmedNextRoundAtRound = m.round);
                     Navigator.pop(context);
                     m.confirmNextRound();
@@ -713,7 +740,9 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                     style: GoogleFonts.cinzel(
                       fontSize: 14, fontWeight: FontWeight.w600)))),
               ]),
-            ])))));
+            ]))))).whenComplete(() {
+      if (!confirmActionTaken && mounted) m.declineNextRound();
+    });
   }
 
   // ── Save & exit ──────────────────────────────────────────────────────────
@@ -1125,7 +1154,7 @@ class _OnlineTokenBagWidget extends StatelessWidget {
                 style: GoogleFonts.cinzel(
                   color: gold.withValues(alpha: 0.55), fontSize: 11)),
             ]))
-        else if (remaining == 0)
+        else if (remaining == 0 && canDraw)
           Row(children: [
             Expanded(child: _BagBtn(
               label: onNextRound != null ? 'Start Next Round' : 'Waiting…',

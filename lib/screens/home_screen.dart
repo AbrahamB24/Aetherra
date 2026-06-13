@@ -36,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final logoSize = MediaQuery.of(context).size.width < 600 ? 120.0 : 200.0;
     return Scaffold(
       backgroundColor: AppColors.dark,
       body: SafeArea(child: Column(children: [
@@ -101,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
 
             // Logo
-            Center(child: Image.asset('assets/logo.png', width: 120, height: 120)),
+            Center(child: Image.asset('assets/logo.png', width: logoSize, height: logoSize)),
             const SizedBox(height: 24),
 
             // Decorative line

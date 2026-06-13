@@ -35,13 +35,14 @@ class _RosterScreenState extends State<RosterScreen> {
   }).toList();
 
   Color _typeColor(String type) {
-    if (type == 'Infantry')  return const Color(0xFF3D78C0);
-    if (type == 'Cavalry')   return const Color(0xFF5CAE68);
+    if (type == 'Infantry')  return const Color(0xFF2255A8);
+    if (type == 'Cavalry')   return const Color(0xFF2E7A40);
     if (type == 'Shooting')  return const Color(0xFFE05090);
     if (type == 'Artillery') return const Color(0xFFB83030);
     if (type == 'Hero')      return const Color(0xFFC9A84C);
     if (type == 'Monster')   return const Color(0xFF7B55C8);
-    if (type == 'Flyer')     return const Color(0xFF18D8EC);
+    if (type == 'Flyer')     return const Color(0xFF00D4E8);
+    if (type == 'Vehicle')   return const Color(0xFFAFC226);
     return grey;
   }
 
@@ -170,6 +171,8 @@ class _RosterScreenState extends State<RosterScreen> {
                   () => setState(() => _typeFilter = 'Monster')),
                 _chip('Flyer', _typeFilter == 'Flyer',
                   () => setState(() => _typeFilter = 'Flyer')),
+                _chip('Vehicle', _typeFilter == 'Vehicle',
+                  () => setState(() => _typeFilter = 'Vehicle')),
               ]),
             ),
           ]),

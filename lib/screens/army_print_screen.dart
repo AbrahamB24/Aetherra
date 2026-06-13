@@ -107,6 +107,7 @@ class _ArmyPrintScreenState extends State<ArmyPrintScreen> {
       case 'artillery': return Icons.architecture;
       case 'hero':      return Icons.star;
       case 'monster':   return Icons.pets;
+      case 'vehicle':   return Icons.airport_shuttle;
       default:          return Icons.shield_outlined;
     }
   }

@@ -79,7 +79,8 @@ class _DevScreenState extends State<DevScreen>
   bool   _facSearchOpen  = false;
   final Set<String> _unitFacF  = {};
   final Set<String> _unitTypeF = {};
-  final Set<String> _abTypeF   = {};
+  final Set<String> _abTypeF     = {};
+  final Set<String> _abCategoryF = {};
   final _unitSearchCtrl  = TextEditingController();
   final _unitSearchFocus = FocusNode();
   final _abSearchCtrl    = TextEditingController();
@@ -327,7 +328,7 @@ class _DevScreenState extends State<DevScreen>
             MapEntry('Infantry','Infantry'), MapEntry('Cavalry','Cavalry'),
             MapEntry('Shooting','Shooting'), MapEntry('Artillery','Artillery'),
             MapEntry('Hero','Hero'), MapEntry('Monster','Monster'),
-            MapEntry('Flyer','Flyer'),
+            MapEntry('Flyer','Flyer'), MapEntry('Vehicle','Vehicle'),
           ],
           selected: _unitTypeF,
           onChanged: (s) => setState(() { _unitTypeF.clear(); _unitTypeF.addAll(s); })),
@@ -540,6 +541,17 @@ class _DevScreenState extends State<DevScreen>
           return false;
         }
       }
+      if (_abCategoryF.isNotEmpty) {
+        final cost   = (a['cost']    as num?)?.toInt() ?? 0;
+        final cpCost = (a['cp_cost'] as num?)?.toInt() ?? 0;
+        final isCommand  = cpCost > 0;
+        final isNegative = cost < 0;
+        final isStandard = !isCommand && !isNegative;
+        final match = (_abCategoryF.contains('standard') && isStandard) ||
+                      (_abCategoryF.contains('command')  && isCommand)  ||
+                      (_abCategoryF.contains('negative') && isNegative);
+        if (!match) return false;
+      }
       return true;
     }).toList();
 
@@ -554,9 +566,20 @@ class _DevScreenState extends State<DevScreen>
                 MapEntry('Infantry','Infantry'), MapEntry('Cavalry','Cavalry'),
                 MapEntry('Shooting','Shooting'), MapEntry('Artillery','Artillery'),
                 MapEntry('Hero','Hero'), MapEntry('Monster','Monster'),
+                MapEntry('Flyer','Flyer'), MapEntry('Vehicle','Vehicle'),
               ],
               selected: _abTypeF,
               onChanged: (s) => setState(() { _abTypeF.clear(); _abTypeF.addAll(s); })),
+            const SizedBox(width: 6),
+            FilterBtn(
+              allLabel: 'Category',
+              options: const [
+                MapEntry('standard', 'Standard'),
+                MapEntry('command',  'Command'),
+                MapEntry('negative', 'Negative'),
+              ],
+              selected: _abCategoryF,
+              onChanged: (s) => setState(() { _abCategoryF.clear(); _abCategoryF.addAll(s); })),
             const Spacer(),
             SearchToggleBtn(
               isOpen: _abSearchOpen,
@@ -1019,7 +1042,7 @@ class _DevScreenState extends State<DevScreen>
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   _lbl('Type'),
                   _dd<String>(value: selType,
-                    items: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
+                    items: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer','Vehicle']
                       .map((t) => DropdownMenuItem(value: t,
                         child: Text(t, style: const TextStyle(color: AppColors.textLight)))).toList(),
                     onChanged: (v) => setS(() {
@@ -1038,7 +1061,7 @@ class _DevScreenState extends State<DevScreen>
                 _stI('DEF', defCtrl, setS), const SizedBox(width: 4),
                 _stI('SHO', rngCtrl, setS), const SizedBox(width: 4),
                 _stI('MOB', mobCtrl, setS,
-                  max: selType == 'Cavalry' || selType == 'Hero' || selType == 'Monster' || selType == 'Flyer' ? 20 : 8),
+                  max: selType == 'Cavalry' || selType == 'Hero' || selType == 'Monster' || selType == 'Flyer' || selType == 'Vehicle' ? 20 : 8),
                 const SizedBox(width: 4),
                 _stI('STR', conCtrl, setS),
                 const SizedBox(width: 4),
@@ -1603,7 +1626,7 @@ class _DevScreenState extends State<DevScreen>
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6, runSpacing: 6,
-                  children: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
+                  children: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer','Vehicle']
                     .map((t) {
                       final on = selTypes.contains(t);
                       final tc = typeColor(t);

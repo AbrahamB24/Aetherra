@@ -190,6 +190,7 @@ IconData typeIcon(String type) {
     case 'hero':      return Icons.star;
     case 'monster':   return Icons.pets;
     case 'flyer':     return Icons.air;
+    case 'vehicle':   return Icons.airport_shuttle;
     default:          return Icons.shield_outlined;
   }
 }
@@ -204,6 +205,7 @@ Widget typeIconWidget(String type, {double size = 24, Color? color}) {
     'hero'      => 'assets/icons/hero.svg',
     'monster'   => 'assets/icons/monster.svg',
     'flyer'     => 'assets/icons/flyer.svg',
+    'vehicle'   => 'assets/icons/vehicle.svg',
     _           => null,
   };
   if (asset != null) {
@@ -216,13 +218,14 @@ Widget typeIconWidget(String type, {double size = 24, Color? color}) {
 
 Color typeColor(String type) {
   switch (type.toLowerCase()) {
-    case 'infantry':  return const Color(0xFF3D78C0);
-    case 'cavalry':   return const Color(0xFF5CAE68);
+    case 'infantry':  return const Color(0xFF2255A8);
+    case 'cavalry':   return const Color(0xFF2E7A40);
     case 'shooting':  return const Color(0xFFE05090);
     case 'artillery': return const Color(0xFFB83030);
     case 'hero':      return const Color(0xFFC9A84C);
     case 'monster':   return const Color(0xFF7B55C8);
-    case 'flyer':     return const Color(0xFF18D8EC);
+    case 'flyer':     return const Color(0xFF00D4E8);
+    case 'vehicle':   return const Color(0xFFAFC226);
     default:          return AppColors.grey;
   }
 }

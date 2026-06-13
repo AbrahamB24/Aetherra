@@ -89,8 +89,9 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
   final Set<String> _unitFacF    = {};
   final Set<String> _unitTypeF   = {};
   final Set<String> _unitSourceF = {};
-  final Set<String> _abTypeF    = {};
-  final Set<String> _abSourceF  = {};
+  final Set<String> _abTypeF     = {};
+  final Set<String> _abSourceF   = {};
+  final Set<String> _abCategoryF = {};
   final _unitSearchCtrl  = TextEditingController();
   final _unitSearchFocus = FocusNode();
   final _abSearchCtrl    = TextEditingController();
@@ -598,7 +599,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
         FilterBtn(
           allLabel: c ? 'Typ' : 'Types',
           compact: xs,
-          options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
+          options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer','Vehicle']
             .map((t) => MapEntry(t, t)).toList(),
           selected: _unitTypeF,
           onChanged: (s) => setState(() { _unitTypeF.clear(); _unitTypeF.addAll(s); })),
@@ -700,6 +701,17 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
         final matchOfficial = _abSourceF.contains('official') && isOfficial;
         if (!matchOwn && !matchOfficial) return false;
       }
+      if (_abCategoryF.isNotEmpty) {
+        final cost   = (a['cost']    as num?)?.toInt() ?? 0;
+        final cpCost = (a['cp_cost'] as num?)?.toInt() ?? 0;
+        final isCommand  = cpCost > 0;
+        final isNegative = cost < 0;
+        final isStandard = !isCommand && !isNegative;
+        final match = (_abCategoryF.contains('standard') && isStandard) ||
+                      (_abCategoryF.contains('command')  && isCommand)  ||
+                      (_abCategoryF.contains('negative') && isNegative);
+        if (!match) return false;
+      }
       return true;
     }).toList();
 
@@ -720,10 +732,20 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
             const SizedBox(width: 6),
             FilterBtn(
               allLabel: c ? 'Typ' : 'Types',
-              options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer']
+              options: ['Infantry','Cavalry','Shooting','Artillery','Hero','Monster','Flyer','Vehicle']
                 .map((t) => MapEntry(t, t)).toList(),
               selected: _abTypeF,
               onChanged: (s) => setState(() { _abTypeF.clear(); _abTypeF.addAll(s); })),
+            const SizedBox(width: 6),
+            FilterBtn(
+              allLabel: c ? 'Cat' : 'Category',
+              options: const [
+                MapEntry('standard', 'Standard'),
+                MapEntry('command',  'Command'),
+                MapEntry('negative', 'Negative'),
+              ],
+              selected: _abCategoryF,
+              onChanged: (s) => setState(() { _abCategoryF.clear(); _abCategoryF.addAll(s); })),
             const Spacer(),
             SearchToggleBtn(
               isOpen: _abSearchOpen,
@@ -1424,7 +1446,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                   _lbl('Type'),
                   _dd<String>(
                     value: selType,
-                    items: ['Infantry', 'Cavalry', 'Shooting', 'Artillery', 'Hero', 'Monster', 'Flyer']
+                    items: ['Infantry', 'Cavalry', 'Shooting', 'Artillery', 'Hero', 'Monster', 'Flyer', 'Vehicle']
                         .map((t) => DropdownMenuItem(value: t,
                           child: Text(t, style: const TextStyle(
                             color: AppColors.textLight)))).toList(),
@@ -1448,7 +1470,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
                 _stI('DEF', defCtrl, setS), const SizedBox(width: 4),
                 _stI('SHO', rngCtrl, setS), const SizedBox(width: 4),
                 _stI('MOB', mobCtrl, setS,
-                  max: selType == 'Cavalry' || selType == 'Hero' || selType == 'Monster' || selType == 'Flyer' ? 20 : 8),
+                  max: selType == 'Cavalry' || selType == 'Hero' || selType == 'Monster' || selType == 'Flyer' || selType == 'Vehicle' ? 20 : 8),
                 const SizedBox(width: 4),
                 _stI('STR', conCtrl, setS),
                 const SizedBox(width: 4),
