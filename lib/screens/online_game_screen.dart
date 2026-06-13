@@ -33,6 +33,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   String? _shownReactiveAwaiterForToken;
   String? _shownReactiveActiveForToken;
   bool    _wasWaitingForReactive = false;
+  String? _lastNotifiedDrawId; // prevents double-firing for the same draw
   // After the first reactive wait popup, subsequent waits show a spinner on the button instead.
   bool    _hasSeenActiveReactivePopup = false;
   bool _shownOpponentLeftPopup    = false;
@@ -248,6 +249,34 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       m.clearOpponentLeft();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showOpponentLeftDialog();
+      });
+    }
+
+    // Token drawn without reactive → show snackbar so the inactive player is notified.
+    // myPerspectiveBag converts colors to 'player'/'enemy'. Only fire when pendingType == null
+    // (reactive draws already get their own dialog).
+    final lastDrawn = m.myPerspectiveBag.lastDrawn;
+    if (lastDrawn != null &&
+        lastDrawn.id != _lastNotifiedDrawId &&
+        m.pendingType == null &&
+        lastDrawn.color == 'enemy') {
+      _lastNotifiedDrawId = lastDrawn.id;
+      final oppName = m.opponentCreatorName ??
+          (m.opponentArmyName.isNotEmpty ? m.opponentArmyName : 'Opponent');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(SnackBar(
+              backgroundColor: AppColors.dark,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              duration: const Duration(seconds: 3),
+              shape: const RoundedRectangleBorder(),
+              content: Text("$oppName's token — their turn",
+                style: GoogleFonts.cinzel(
+                  color: AppColors.gold, fontSize: 12))));
+        }
       });
     }
 
@@ -767,7 +796,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
             KeyedSubtree(key: _keyLog,
               child: NavBtn(
                 icon: Icons.history, width: 36,
-                onPressed: () => showActionLogSheet(context, m.actionLog))),
+                onPressed: () => showActionLogSheet(
+                  context,
+                  m.combinedActionLog,
+                  myPlayerName:       m.myCreatorName ?? m.myArmyName,
+                  opponentPlayerName: m.opponentCreatorName ?? (m.opponentArmyName.isNotEmpty ? m.opponentArmyName : 'Opponent'),
+                ))),
             NavBtn(
               icon: Icons.help_outline, width: 36,
               onPressed: () => showTutorial(context, _tutorialSteps())),
@@ -972,12 +1006,12 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
               child: Row(children: [
                 Expanded(child: _OnlineTab(
                   icon: Icons.shield_outlined,
-                  label: '${m.myArmyName} (${m.myUnits.where((u) => !u.isEliminated).length})',
+                  label: '${m.myCreatorName ?? m.myArmyName} (${m.myUnits.where((u) => !u.isEliminated).length})',
                   selected: _unitTabIdx == 0,
                   onTap: () => setState(() => _unitTabIdx = 0))),
                 Expanded(child: _OnlineTab(
                   icon: Icons.people_outline,
-                  label: '${m.opponentArmyName.isNotEmpty ? m.opponentArmyName : 'Opponent'} (${m.opponentUnits.where((u) => !u.isEliminated).length})',
+                  label: '${m.opponentCreatorName ?? (m.opponentArmyName.isNotEmpty ? m.opponentArmyName : 'Opponent')} (${m.opponentUnits.where((u) => !u.isEliminated).length})',
                   selected: _unitTabIdx == 1,
                   onTap: () => setState(() => _unitTabIdx = 1))),
               ]))),
@@ -1011,7 +1045,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const SizedBox(width: 18), // mirror _GlowIcon width
+        const SizedBox(width: 26), // _GlowIcon(size:18) renders at size+8 = 26
         const SizedBox(width: 10),
         Column(mainAxisSize: MainAxisSize.min, children: [
           Text('${m.opponentCP}',
@@ -1022,7 +1056,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
             fontSize: 9, letterSpacing: 1)),
         ]),
         const SizedBox(width: 10),
-        const SizedBox(width: 18), // mirror _GlowIcon width
+        const SizedBox(width: 26), // _GlowIcon(size:18) renders at size+8 = 26
       ]));
 
   List<MapEntry<String, List<GameUnit>>> _myGroups(OnlineGameManager m) {
@@ -1331,9 +1365,9 @@ class _OnlineGameBannerState extends State<_OnlineGameBanner> with _BannerBtns<_
                                 color: Colors.white54, fontSize: 12,
                                 shadows: const [Shadow(color: Colors.black87, blurRadius: 4)])),
                           ],
-                          if (m.opponentArmyName.isNotEmpty) ...[
+                          if ((m.opponentCreatorName ?? m.opponentArmyName).isNotEmpty) ...[
                             const SizedBox(height: 2),
-                            Text('vs ${m.opponentArmyName}',
+                            Text('vs ${m.opponentCreatorName ?? m.opponentArmyName}',
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.cinzel(
                                 color: Colors.white,
@@ -1836,7 +1870,8 @@ class _OnlineDndTile extends StatelessWidget {
       },
       builder: (_, __, ___) => draggable(
         _MyUnitCard(unit: unit, manager: manager, myColor: myColor,
-          strStatKey: absIdx == allUnits.indexWhere((u) => !u.isEliminated && !u.activated)
+          strStatKey: unit == (allUnits.where((u) => !u.isEliminated && u.groupName == '').firstOrNull
+              ?? allUnits.where((u) => !u.isEliminated).firstOrNull)
               ? _OnlineGameScreenState._keyStr : null)));
   }
 }

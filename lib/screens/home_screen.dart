@@ -98,7 +98,11 @@ class _HomeScreenState extends State<HomeScreen> {
         Expanded(child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // Logo
+            Center(child: Image.asset('assets/logo.png', width: 120, height: 120)),
+            const SizedBox(height: 24),
 
             // Decorative line
             Container(height: 1, width: 48, color: gold.withValues(alpha: 0.35)),

@@ -1038,7 +1038,8 @@ class _GameDndTile extends StatelessWidget {
           local.dx < box.size.width / 2 ? absIdx : absIdx + 1, grp);
       },
       builder: (_, __, ___) => draggable(_UnitCard(unit: unit, game: game, playerCol: playerCol,
-        strStatKey: absIdx == allUnits.indexWhere((u) => !u.isEliminated && !u.activated)
+        strStatKey: unit == (allUnits.where((u) => !u.isEliminated && u.groupName == '').firstOrNull
+            ?? allUnits.where((u) => !u.isEliminated).firstOrNull)
             ? _GameScreenState._keyStr : null)));
   }
 }

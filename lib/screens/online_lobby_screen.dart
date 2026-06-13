@@ -13,6 +13,7 @@ import '../widgets/nav_btn.dart';
 import '../widgets/photo_crop_dialog.dart';
 import '../widgets/unit_card.dart' show BannerStat, BannerUnitsPanel;
 import 'online_game_screen.dart';
+import 'new_army_screen.dart';
 
 class OnlineLobbyScreen extends StatefulWidget {
   const OnlineLobbyScreen({super.key});
@@ -449,7 +450,7 @@ class _OnlineSaveCardState extends State<_OnlineSaveCard> {
     final hasLore  = g.myLore.isNotEmpty;
     final hasUnits = g.myUnitEntries.isNotEmpty;
     final bgColor  = AppColors.parseHex(g.myBgColor);
-    final opp      = g.opponentArmyName;
+    final opp      = g.opponentCreatorName ?? g.opponentArmyName;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -719,8 +720,23 @@ class _ArmyPickerStep extends StatelessWidget {
           ? Center(child: CircularProgressIndicator(
               strokeWidth: 1.5, color: gold.withValues(alpha: 0.5)))
           : armies.isEmpty
-          ? Center(child: Text('No armies found. Create one first.',
-                style: GoogleFonts.cinzel(color: grey, fontSize: 13)))
+          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('No armies yet.',
+                style: GoogleFonts.cinzel(color: grey, fontSize: 13)),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () async {
+                  await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const NewArmyScreen()));
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: gold,
+                  side: BorderSide(color: gold.withValues(alpha: 0.5)),
+                  shape: const RoundedRectangleBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+                child: Text('Create Army',
+                  style: GoogleFonts.cinzel(fontSize: 13, fontWeight: FontWeight.w600))),
+            ]))
           : ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
               itemCount: armies.length,

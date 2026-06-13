@@ -32,6 +32,7 @@ class SavedGameInfo {
 
   // Opponent
   final String? opponentArmyName;
+  final String? opponentCreatorName;
 
   const SavedGameInfo({
     required this.sessionId,
@@ -49,6 +50,7 @@ class SavedGameInfo {
     required this.myAlivePts,
     required this.myTotalPts,
     this.opponentArmyName,
+    this.opponentCreatorName,
   });
 }
 
@@ -567,7 +569,11 @@ class OnlineGameManager extends ChangeNotifier {
     _opponentImageB64      = s['armyImageB64']    as String?;
     _opponentArmyLore      = s['armyLore']        as String?;
     _opponentPlayerColor   = s['playerColor']     as String? ?? '#D48080';
-    _opponentUnits       = _parseUnits(s['units'] as List? ?? []);
+    _opponentUnits         = _parseUnits(s['units'] as List? ?? []);
+    _opponentActionLog
+      ..clear()
+      ..addAll((s['actionLog'] as List? ?? [])
+          .map((e) => ActionLogEntry.fromJson(e as Map<String, dynamic>)));
   }
 
   List<GameUnit> _parseUnits(List<dynamic> list) {
@@ -629,8 +635,11 @@ class OnlineGameManager extends ChangeNotifier {
       _pendingData = pending;
     }
 
-    final myColor = _myRole == OnlineRole.host ? 'host' : 'guest';
-    _log('token', 'Token drawn: ${t.color == myColor ? "mine" : "opponent"}');
+    final myColor   = _myRole == OnlineRole.host ? 'host' : 'guest';
+    final drawnBy   = t.color == myColor
+        ? (_myCreatorName ?? _myArmyName)
+        : (_opponentCreatorName ?? (_opponentArmyName.isNotEmpty ? _opponentArmyName : 'Opponent'));
+    _log('token', 'Token drawn: $drawnBy');
     notifyListeners();
     await _persistShared(pendingAction: pending);
   }
@@ -798,12 +807,28 @@ class OnlineGameManager extends ChangeNotifier {
   }
 
   // ── ACTION LOG ───────────────────────────────────────────────────────────
-  final List<ActionLogEntry> _actionLog = [];
+  final List<ActionLogEntry> _actionLog         = [];
+  final List<ActionLogEntry> _opponentActionLog = [];
+
   List<ActionLogEntry> get actionLog => _actionLog;
+
+  List<ActionLogEntry> get combinedActionLog {
+    final all = [..._actionLog, ..._opponentActionLog];
+    all.sort((a, b) => a.round.compareTo(b.round));
+    final seenRounds = <int>{};
+    return all.where((e) {
+      if (e.tag != 'round') return true;
+      final m = RegExp(r'Round (\d+)').firstMatch(e.text);
+      final n = m != null ? int.tryParse(m.group(1)!) : null;
+      if (n == null) return true;
+      return seenRounds.add(n);
+    }).toList();
+  }
 
   void _log(String tag, String text) {
     _actionLog.add(ActionLogEntry(
-      round: _round, tag: tag, text: text, player: _myArmyName));
+      round: _round, tag: tag, text: text,
+      player: _myCreatorName ?? _myArmyName));
     if (_actionLog.length > 300) _actionLog.removeAt(0);
   }
 
@@ -986,8 +1011,9 @@ class OnlineGameManager extends ChangeNotifier {
         final shared = parseRaw(r['shared']);
         final round  = (shared?['round'] as num? ?? 1).toInt();
 
-        final opp     = parseRaw(r[oppKey]);
-        final oppName = opp?['armyName'] as String?;
+        final opp         = parseRaw(r[oppKey]);
+        final oppName     = opp?['armyName']        as String?;
+        final oppCreator  = opp?['armyCreatorName'] as String?;
 
         final my = parseRaw(r[myKey]);
         final myArmyName    = my?['armyName']        as String? ?? '';
@@ -1032,7 +1058,8 @@ class OnlineGameManager extends ChangeNotifier {
           myUnitEntries:    myUnitEntries,
           myAlivePts:       alivePts,
           myTotalPts:       totalPts,
-          opponentArmyName: oppName,
+          opponentArmyName:    oppName,
+          opponentCreatorName: oppCreator,
         ));
       }
       return result;

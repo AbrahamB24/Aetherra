@@ -5,12 +5,20 @@ import '../app_theme.dart';
 import '../game/models/game_state.dart';
 import 'd20_icon.dart';
 
-void showActionLogSheet(BuildContext ctx, List<ActionLogEntry> log) {
+void showActionLogSheet(
+  BuildContext ctx,
+  List<ActionLogEntry> log, {
+  String? myPlayerName,
+  String? opponentPlayerName,
+}) {
   showModalBottomSheet<void>(
     context: ctx,
     isScrollControlled: true,
     backgroundColor: AppColors.dark,
-    builder: (_) => _ActionLogSheet(log: log));
+    builder: (_) => _ActionLogSheet(
+      log: log,
+      myPlayerName: myPlayerName,
+      opponentPlayerName: opponentPlayerName));
 }
 
 // ── Color & icon maps ─────────────────────────────────────────────────────────
@@ -89,14 +97,21 @@ const _filterColors = <String, Color>{
 // ── Sheet ─────────────────────────────────────────────────────────────────────
 class _ActionLogSheet extends StatefulWidget {
   final List<ActionLogEntry> log;
-  const _ActionLogSheet({required this.log});
+  final String? myPlayerName;
+  final String? opponentPlayerName;
+  const _ActionLogSheet({
+    required this.log,
+    this.myPlayerName,
+    this.opponentPlayerName,
+  });
   @override State<_ActionLogSheet> createState() => _ActionLogSheetState();
 }
 
 class _ActionLogSheetState extends State<_ActionLogSheet> {
   late final List<ActionLogEntry> _reversed;
   final _roundKeys = <int, GlobalKey>{};
-  String? _filterGroup; // null = All
+  String? _filterGroup;  // null = All
+  String? _filterPlayer; // null = Both; otherwise player name to match
 
   @override
   void initState() {
@@ -126,8 +141,9 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
   }
 
   bool _isVisible(ActionLogEntry e) {
-    if (_filterGroup == null) return true;
     if (e.tag == 'round') return true; // always show round dividers for context
+    if (_filterPlayer != null && e.player != _filterPlayer) return false;
+    if (_filterGroup == null) return true;
     return (_filterGroups[_filterGroup] ?? []).contains(e.tag);
   }
 
@@ -213,6 +229,50 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
                         active: _filterGroup == group,
                         isDice: group == 'Dice')),
                 ]),
+              // Player filter — only in online mode
+              if (widget.myPlayerName != null &&
+                  widget.opponentPlayerName != null) ...[
+                const SizedBox(width: 8),
+                PopupMenuButton<String>(
+                  color:          AppColors.dark,
+                  shape:          const RoundedRectangleBorder(),
+                  tooltip:        '',
+                  padding:        EdgeInsets.zero,
+                  enableFeedback: false,
+                  onSelected: (v) =>
+                      setState(() => _filterPlayer = v == 'both' ? null : v),
+                  child: _DropdownLabel(
+                    label: _filterPlayer == null
+                        ? 'Both'
+                        : _filterPlayer == widget.myPlayerName
+                            ? 'Me'
+                            : 'Opp',
+                    active: _filterPlayer != null),
+                  itemBuilder: (_) => [
+                    PopupMenuItem<String>(
+                      value:   'both',
+                      padding: EdgeInsets.zero,
+                      child:   _FilterMenuItem(
+                        label: 'Both Players', icon: Icons.people_outline,
+                        color: AppColors.grey, active: _filterPlayer == null)),
+                    PopupMenuItem<String>(
+                      value:   widget.myPlayerName!,
+                      padding: EdgeInsets.zero,
+                      child:   _FilterMenuItem(
+                        label: widget.myPlayerName!,
+                        icon:  Icons.person_outline,
+                        color: AppColors.gold,
+                        active: _filterPlayer == widget.myPlayerName)),
+                    PopupMenuItem<String>(
+                      value:   widget.opponentPlayerName!,
+                      padding: EdgeInsets.zero,
+                      child:   _FilterMenuItem(
+                        label: widget.opponentPlayerName!,
+                        icon:  Icons.person_outline,
+                        color: const Color(0xFFD48080),
+                        active: _filterPlayer == widget.opponentPlayerName)),
+                  ]),
+              ],
             ]))),
 
         // ── Log list ──────────────────────────────────────────────────────────

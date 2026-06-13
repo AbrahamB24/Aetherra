@@ -147,7 +147,9 @@ class _AuthGateState extends State<AuthGate> {
     final user = _sb.auth.currentUser;
     if (user == null) return;
     final prefs = await SharedPreferences.getInstance();
-    final done  = prefs.getBool('onboarding_done') ?? false;
+    final localDone = prefs.getBool('onboarding_done') ?? false;
+    final metaDone  = user.userMetadata?['onboarding_done'] == true;
+    final done = localDone || metaDone;
     // Load role, subscription status, and game data in parallel
     await Future.wait([
       _loadRole(user.id),
@@ -160,6 +162,9 @@ class _AuthGateState extends State<AuthGate> {
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_done', true);
+    try {
+      await _sb.auth.updateUser(UserAttributes(data: {'onboarding_done': true}));
+    } catch (_) {}
     if (mounted) setState(() => _onboardingDone = true);
   }
 
@@ -278,6 +283,10 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SizedBox(width: 380, child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Logo
+            Center(child: Image.asset('assets/logo.png', width: 110, height: 110)),
+            const SizedBox(height: 20),
+
             // Decorative line
             Container(height: 1, width: 48, color: gold.withValues(alpha: 0.35)),
             const SizedBox(height: 20),
