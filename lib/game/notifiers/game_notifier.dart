@@ -257,7 +257,8 @@ class GameNotifier extends ChangeNotifier {
 
   void _log(String tag, String text) {
     if (_state == null) return;
-    _state!.actionLog.add(ActionLogEntry(round: _state!.round, tag: tag, text: text));
+    _state!.actionLog.add(ActionLogEntry(round: _state!.round, tag: tag, text: text,
+        ms: DateTime.now().millisecondsSinceEpoch));
     if (_state!.actionLog.length > 300) _state!.actionLog.removeAt(0);
   }
 

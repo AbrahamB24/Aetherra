@@ -116,7 +116,11 @@ class _ActionLogSheetState extends State<_ActionLogSheet> {
   @override
   void initState() {
     super.initState();
-    _reversed = widget.log.reversed.toList();
+    _reversed = [...widget.log]
+      ..sort((a, b) {
+        final r = b.round.compareTo(a.round);
+        return r != 0 ? r : b.ms.compareTo(a.ms);
+      });
     for (final e in _reversed) {
       if (e.tag == 'round') {
         final n = _roundFromText(e.text);

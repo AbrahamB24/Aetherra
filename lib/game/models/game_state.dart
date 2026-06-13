@@ -126,15 +126,18 @@ class ActionLogEntry {
   final String  tag;     // 'damage'|'heal'|'eliminate'|'activate'|'condition'|'cp'|'token'|'round'|'dice'
   final String  text;
   final String? player;  // null = offline (single player); non-null = army name of acting player
+  final int     ms;      // milliseconds since epoch — used for chronological sort across players
 
-  const ActionLogEntry({required this.round, required this.tag, required this.text, this.player});
+  const ActionLogEntry({required this.round, required this.tag, required this.text, this.player, int? ms})
+      : ms = ms ?? 0;
 
-  Map<String, dynamic> toJson() => {'round': round, 'tag': tag, 'text': text, if (player != null) 'player': player};
+  Map<String, dynamic> toJson() => {'round': round, 'tag': tag, 'text': text, 'ms': ms, if (player != null) 'player': player};
   factory ActionLogEntry.fromJson(Map<String, dynamic> j) => ActionLogEntry(
     round:  (j['round'] as num).toInt(),
     tag:    j['tag']    as String? ?? 'round',
     text:   j['text']   as String? ?? '',
     player: j['player'] as String?,
+    ms:     (j['ms']    as num?)?.toInt(),
   );
 }
 

@@ -33,7 +33,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   String? _shownReactiveAwaiterForToken;
   String? _shownReactiveActiveForToken;
   bool    _wasWaitingForReactive = false;
-  String? _lastNotifiedDrawId; // prevents double-firing for the same draw
+  int _lastNotifiedDrawSerial = -1; // prevents double-firing for the same draw
   // After the first reactive wait popup, subsequent waits show a spinner on the button instead.
   bool    _hasSeenActiveReactivePopup = false;
   bool _shownOpponentLeftPopup    = false;
@@ -95,6 +95,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   @override
   void initState() {
     super.initState();
+    _lastNotifiedDrawSerial = widget.manager.drawSerial;
     widget.manager.addListener(_onManagerChange);
     WidgetsBinding.instance.addObserver(this);
     // Poll every 3 s while waiting for the guest to join — fallback for missed Realtime events.
@@ -252,15 +253,14 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       });
     }
 
-    // Token drawn without reactive → show snackbar so the inactive player is notified.
-    // myPerspectiveBag converts colors to 'player'/'enemy'. Only fire when pendingType == null
-    // (reactive draws already get their own dialog).
+    // Token drawn → notify the inactive player via snackbar.
+    // Use drawSerial (not token ID) so the same token redrawn after reactive still fires.
+    // lastDrawn.color == 'enemy' already excludes reactive draws (where my token was drawn).
     final lastDrawn = m.myPerspectiveBag.lastDrawn;
     if (lastDrawn != null &&
-        lastDrawn.id != _lastNotifiedDrawId &&
-        m.pendingType == null &&
+        m.drawSerial != _lastNotifiedDrawSerial &&
         lastDrawn.color == 'enemy') {
-      _lastNotifiedDrawId = lastDrawn.id;
+      _lastNotifiedDrawSerial = m.drawSerial;
       final oppName = m.opponentCreatorName ??
           (m.opponentArmyName.isNotEmpty ? m.opponentArmyName : 'Opponent');
       WidgetsBinding.instance.addPostFrameCallback((_) {
