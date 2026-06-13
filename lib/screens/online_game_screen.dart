@@ -33,7 +33,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   String? _shownReactiveAwaiterForToken;
   String? _shownReactiveActiveForToken;
   bool    _wasWaitingForReactive = false;
-  int _lastNotifiedDrawSerial = -1; // prevents double-firing for the same draw
   // After the first reactive wait popup, subsequent waits show a spinner on the button instead.
   bool    _hasSeenActiveReactivePopup = false;
   bool _shownOpponentLeftPopup    = false;
@@ -95,7 +94,6 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
   @override
   void initState() {
     super.initState();
-    _lastNotifiedDrawSerial = widget.manager.drawSerial;
     widget.manager.addListener(_onManagerChange);
     WidgetsBinding.instance.addObserver(this);
     // Poll every 3 s while waiting for the guest to join — fallback for missed Realtime events.
@@ -253,33 +251,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       });
     }
 
-    // Token drawn → notify the inactive player via snackbar.
-    // Use drawSerial (not token ID) so the same token redrawn after reactive still fires.
-    // lastDrawn.color == 'enemy' already excludes reactive draws (where my token was drawn).
-    final lastDrawn = m.myPerspectiveBag.lastDrawn;
-    if (lastDrawn != null &&
-        m.drawSerial != _lastNotifiedDrawSerial &&
-        lastDrawn.color == 'enemy') {
-      _lastNotifiedDrawSerial = m.drawSerial;
-      final oppName = m.opponentCreatorName ??
-          (m.opponentArmyName.isNotEmpty ? m.opponentArmyName : 'Opponent');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-            ..clearSnackBars()
-            ..showSnackBar(SnackBar(
-              backgroundColor: AppColors.dark,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              duration: const Duration(seconds: 3),
-              shape: const RoundedRectangleBorder(),
-              content: Text("$oppName's token — their turn",
-                style: GoogleFonts.cinzel(
-                  color: AppColors.gold, fontSize: 12))));
-        }
-      });
-    }
-
+    // Token drawn → notify the token OWNER: whoever's token was drawn gets "your turn".
     setState(() {});
   }
 

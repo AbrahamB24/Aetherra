@@ -102,12 +102,6 @@ class OnlineGameManager extends ChangeNotifier {
   String?               get pendingFrom => _pendingFrom;
   Map<String, dynamic>? get pendingData => _pendingData;
 
-  // ── Draw serial ──────────────────────────────────────────────────────────
-  // Monotonically increasing counter: incremented on every drawToken() call.
-  // Stored in shared state so the inactive player can detect a new draw even
-  // if the same token is redrawn (e.g. after a reactive put-back).
-  int _drawSerial = 0;
-  int get drawSerial => _drawSerial;
 
   // ── My state ────────────────────────────────────────────────────────────
   List<GameUnit> _myUnits         = [];
@@ -523,7 +517,6 @@ class OnlineGameManager extends ChangeNotifier {
 
   void _loadSharedState(Map<String, dynamic> s) {
     _round        = (s['round'] as num? ?? 1).toInt();
-    _drawSerial   = (s['drawSerial'] as num? ?? 0).toInt();
     final bagData = _parseJsonField(s['tokenBag']);
     if (bagData != null) _tokenBag = TokenBag.fromJson(bagData);
     _activePlayer = s['activePlayer'] as String?;
@@ -647,7 +640,6 @@ class OnlineGameManager extends ChangeNotifier {
     final drawnBy   = t.color == myColor
         ? (_myCreatorName ?? _myArmyName)
         : (_opponentCreatorName ?? (_opponentArmyName.isNotEmpty ? _opponentArmyName : 'Opponent'));
-    _drawSerial++;
     _log('token', 'Token drawn: $drawnBy');
     notifyListeners();
     await _persistShared(pendingAction: pending);
@@ -736,11 +728,10 @@ class OnlineGameManager extends ChangeNotifier {
     try {
       await _persistMyState();
       await _persistSharedRaw({
-        'round':         newRound,
-        'drawSerial':    _drawSerial,
-        'tokenBag':      _tokenBag.toJson(),
-        'activePlayer':  null,
-        'pendingAction': null,
+        'round':    newRound,
+        'tokenBag': _tokenBag.toJson(),
+        'activePlayer':    null,
+        'pendingAction':   null,
       });
     } finally {
       _skipPendingFromRemote = false;
@@ -1124,9 +1115,8 @@ class OnlineGameManager extends ChangeNotifier {
 
   Future<void> _persistShared({Map<String, dynamic>? pendingAction}) =>
       _persistSharedRaw({
-        'round':         _round,
-        'drawSerial':    _drawSerial,
-        'tokenBag':      _tokenBag.toJson(),
+        'round':    _round,
+        'tokenBag': _tokenBag.toJson(),
         'activePlayer':  _activePlayer,
         'pendingAction': pendingAction,
       });
