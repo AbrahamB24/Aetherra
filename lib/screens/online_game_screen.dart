@@ -263,9 +263,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
       title: 'Reactive Activation',
       body: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(child: Text(
-          "Your opponent's token was drawn.\n"
-          "Spend 1 CP to become the active player\n"
-          "and activate one of your units first.",
+          "Your opponent's token was drawn.\nSpend 1 CP to become the active player and activate one of your units first.",
           style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.6))),
         const SizedBox(width: 12),
         Container(
@@ -295,8 +293,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     showAetherraSheet<void>(context,
       title: 'Reactive Activation',
       body: Text(
-        'Your token was drawn. Your opponent is now deciding\n'
-        'whether to spend 1 CP to activate one of their units first.',
+        'Your token was drawn.\nYour opponent is now deciding whether to spend 1 CP to activate one of their units first.',
         style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.6)),
       actions: [SheetAction('OK', gold, () => Navigator.pop(context))]);
   }
@@ -412,9 +409,7 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
     showAetherraSheet<void>(context,
       title: 'Reactive Activation',
       body: Text(
-        'Your opponent spent 1 CP for a Reactive Activation.\n'
-        'They are now the active player and will activate\n'
-        'one of their units first.',
+        'Your opponent spent 1 CP for a Reactive Activation.\nThey are now the active player and will activate one of their units first.',
         style: GoogleFonts.cinzel(color: grey, fontSize: 13, height: 1.6)),
       actions: [SheetAction('OK', gold, () => Navigator.pop(context))]);
   }
@@ -867,7 +862,8 @@ class _OnlineGameScreenState extends State<OnlineGameScreen>
                 border: Border.all(color: gold.withValues(alpha: 0.35))),
               child: _OnlineTokenBagWidget(
                 manager: m, bag: bag, myColor: myColor, oppColor: oppColor,
-                activeWaitSeen: _hasSeenActiveReactivePopup))),
+                activeWaitSeen: _hasSeenActiveReactivePopup,
+                onNextRound: _waitingForConfirm ? null : _showNextRoundSheet))),
 
           // ARMY BANNER (hides on scroll, switches with tab)
           KeyedSubtree(key: _keyBanner,
@@ -1072,10 +1068,12 @@ class _OnlineTokenBagWidget extends StatelessWidget {
   final Color myColor;
   final Color oppColor;
   final bool activeWaitSeen;
+  final VoidCallback? onNextRound; // called when bag is empty and button tapped
   const _OnlineTokenBagWidget({
     required this.manager, required this.bag,
     required this.myColor, required this.oppColor,
-    required this.activeWaitSeen});
+    required this.activeWaitSeen,
+    this.onNextRound});
 
   static const gold = AppColors.gold;
   static const grey = AppColors.grey;
@@ -1127,6 +1125,13 @@ class _OnlineTokenBagWidget extends StatelessWidget {
                 style: GoogleFonts.cinzel(
                   color: gold.withValues(alpha: 0.55), fontSize: 11)),
             ]))
+        else if (remaining == 0)
+          Row(children: [
+            Expanded(child: _BagBtn(
+              label: onNextRound != null ? 'Start Next Round' : 'Waiting…',
+              color: onNextRound != null ? gold : grey,
+              onTap: onNextRound)),
+          ])
         else
           Row(children: [
             Expanded(child: _BagBtn(

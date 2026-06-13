@@ -620,9 +620,11 @@ class OnlineGameManager extends ChangeNotifier {
     // may spend 1 AP to insert their own activation first.
     final reactingPlayer   = t.color == 'host' ? 'guest' : 'host';
     final reactingPlayerCP = reactingPlayer == opponentRole ? _opponentCP : _myCP;
+    final reactingUnits    = reactingPlayer == opponentRole ? _opponentUnits : _myUnits;
+    final reactingHasUnit  = reactingUnits.any((u) => !u.isEliminated && !u.activated);
 
     Map<String, dynamic>? pending;
-    if (reactingPlayerCP > 0) {
+    if (reactingPlayerCP > 0 && reactingHasUnit) {
       pending = {
         'type':           'reactive',
         'fromPlayer':     t.color,        // active player (token drawn, must wait)
