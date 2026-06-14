@@ -274,10 +274,8 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               color: gold.withValues(alpha: 0.4)),
             const SizedBox(height: 20),
             Text(
-              'Create your own factions, units and abilities. '
-              'Your creations are private and only visible to you — '
-              'but armies you build with custom units can be shared '
-              'with other players.',
+              'Create your own Factions, Units and Abilities '
+              'and share your custom Armies with your Friends.',
               textAlign: TextAlign.center,
               style: GoogleFonts.cinzel(
                 color: grey.withValues(alpha: 0.7),
