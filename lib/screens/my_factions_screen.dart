@@ -279,10 +279,10 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               color: gold.withValues(alpha: 0.4)),
             const SizedBox(height: 20),
             Text(
-              'Create your own factions, units and abilities — '
-              'exclusively for you. Your creations are private, '
-              'usable directly in your army builder, and armies '
-              'built with them can be shared.',
+              'Create your own factions, units and abilities. '
+              'Your creations are private and only visible to you — '
+              'but armies you build with custom units can be shared '
+              'with other players.',
               textAlign: TextAlign.center,
               style: GoogleFonts.cinzel(
                 color: grey.withValues(alpha: 0.7),
@@ -304,7 +304,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
               label: 'Private — only visible to you'),
             const SizedBox(height: 10),
             const _PremiumFeature(icon: Icons.share_outlined,
-              label: 'Armies with custom units can be shared'),
+              label: 'Share armies with custom units with other players'),
             const SizedBox(height: 36),
             const _UpgradeButton(url: _stripePaymentUrl),
             const SizedBox(height: 8),
