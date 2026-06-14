@@ -40,10 +40,11 @@ class _FactionUnitPickerScreenState extends State<FactionUnitPickerScreen> {
   late final Set<String> _assignedUserIds;
   late final Set<String> _assignedOfficialRefs;
 
-  String      _search  = '';
+  String      _search     = '';
   final _searchCtrl = TextEditingController();
-  Set<String> _fTypes  = {};
-  Set<String> _selFacs = {};
+  Set<String> _fTypes     = {};
+  Set<String> _selFacs    = {};
+  Set<String> _selSources = {};
   String      _sortBy  = 'name';
   bool        _sortAsc = true;
   int         _tabIdx  = 0;
@@ -130,24 +131,31 @@ class _FactionUnitPickerScreenState extends State<FactionUnitPickerScreen> {
     final userIds = _userUnitIds;
     final result = <Map<String, dynamic>>[];
 
-    for (final u in widget.userUnits) {
-      if (_assignedUserIds.contains(u['id'] as String)) { continue; }
-      if (q.isNotEmpty &&
-          !(u['name'] as String).toLowerCase().contains(q)) { continue; }
-      if (_fTypes.isNotEmpty && !_fTypes.contains(u['type'])) { continue; }
-      if (_selFacs.isNotEmpty &&
-          !_selFacs.contains(u['faction_id'] as String?)) { continue; }
-      result.add({...u, '_src': 'user'});
+    final showCustom   = _selSources.isEmpty || _selSources.contains('Custom');
+    final showOfficial = _selSources.isEmpty || _selSources.contains('Official');
+
+    if (showCustom) {
+      for (final u in widget.userUnits) {
+        if (_assignedUserIds.contains(u['id'] as String)) { continue; }
+        if (q.isNotEmpty &&
+            !(u['name'] as String).toLowerCase().contains(q)) { continue; }
+        if (_fTypes.isNotEmpty && !_fTypes.contains(u['type'])) { continue; }
+        if (_selFacs.isNotEmpty &&
+            !_selFacs.contains(u['faction_id'] as String?)) { continue; }
+        result.add({...u, '_src': 'user'});
+      }
     }
-    for (final u in GameDataService.units) {
-      if (userIds.contains(u['id'] as String)) continue;
-      if (_assignedOfficialRefs.contains(u['name'] as String)) { continue; }
-      if (q.isNotEmpty &&
-          !(u['name'] as String).toLowerCase().contains(q)) { continue; }
-      if (_fTypes.isNotEmpty && !_fTypes.contains(u['type'])) { continue; }
-      if (_selFacs.isNotEmpty &&
-          !_selFacs.contains(u['faction_id'] as String?)) { continue; }
-      result.add({...u, '_src': 'official'});
+    if (showOfficial) {
+      for (final u in GameDataService.units) {
+        if (userIds.contains(u['id'] as String)) continue;
+        if (_assignedOfficialRefs.contains(u['name'] as String)) { continue; }
+        if (q.isNotEmpty &&
+            !(u['name'] as String).toLowerCase().contains(q)) { continue; }
+        if (_fTypes.isNotEmpty && !_fTypes.contains(u['type'])) { continue; }
+        if (_selFacs.isNotEmpty &&
+            !_selFacs.contains(u['faction_id'] as String?)) { continue; }
+        result.add({...u, '_src': 'official'});
+      }
     }
 
     result.sort((a, b) {
@@ -321,6 +329,10 @@ class _FactionUnitPickerScreenState extends State<FactionUnitPickerScreen> {
             _TypeDropdown(
               selected: _fTypes,
               onChanged: (s) => setState(() => _fTypes = s)),
+            const SizedBox(width: 6),
+            _SourceDropdown(
+              selected: _selSources,
+              onChanged: (s) => setState(() => _selSources = s)),
             if (choices.isNotEmpty) ...[
               const SizedBox(width: 6),
               _FactionDropdown(
@@ -778,6 +790,91 @@ class _TypeDropdownState extends State<_TypeDropdown> {
                   Icon(_entry != null
                     ? Icons.expand_less : Icons.expand_more,
                     color: gold, size: 14),
+                ]));
+            }))));
+  }
+}
+
+// ── Source multi-select filter dropdown ───────────────────────────────────────
+class _SourceDropdown extends StatefulWidget {
+  final Set<String> selected;
+  final ValueChanged<Set<String>> onChanged;
+  const _SourceDropdown({required this.selected, required this.onChanged});
+  @override State<_SourceDropdown> createState() => _SourceDropdownState();
+}
+class _SourceDropdownState extends State<_SourceDropdown> {
+  static const gold    = AppColors.gold;
+  static const _items  = ['Official', 'Custom'];
+  OverlayEntry? _entry;
+  final _link  = LayerLink();
+  late final ValueNotifier<Set<String>> _sel =
+      ValueNotifier(Set<String>.from(widget.selected));
+
+  @override void didUpdateWidget(_SourceDropdown old) {
+    super.didUpdateWidget(old);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _sel.value = Set<String>.from(widget.selected);
+    });
+  }
+
+  @override void dispose() {
+    _entry?.remove(); _entry = null;
+    _sel.dispose();
+    super.dispose();
+  }
+
+  void _toggle() => _entry == null ? _open() : _close();
+
+  void _open() {
+    _entry = OverlayEntry(builder: (_) => _CheckDropMenu(
+      link: _link, items: _items, sel: _sel,
+      onToggle: (t) {
+        final next = Set<String>.from(_sel.value);
+        if (next.contains(t)) { next.remove(t); } else { next.add(t); }
+        _sel.value = next;
+        widget.onChanged(next);
+      },
+      onClose: _close));
+    Overlay.of(context).insert(_entry!);
+    setState(() {});
+  }
+
+  void _close() { _entry?.remove(); _entry = null; if (mounted) setState(() {}); }
+
+  bool _hovered = false;
+
+  @override Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _link,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit:  (_) => setState(() => _hovered = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: _toggle,
+          child: ValueListenableBuilder<Set<String>>(
+            valueListenable: _sel,
+            builder: (_, sel, __) {
+              final label = sel.isEmpty ? 'All Sources'
+                  : sel.length == 1 ? sel.first
+                  : 'Both';
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _hovered
+                      ? gold.withValues(alpha: 0.12)
+                      : sel.isEmpty ? Colors.transparent : gold.withValues(alpha: 0.12),
+                  border: Border.all(
+                    color: _hovered ? gold
+                        : sel.isEmpty ? gold.withValues(alpha: 0.3) : gold)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.source_outlined, color: gold, size: 15),
+                  const SizedBox(width: 5),
+                  Text(label, style: GoogleFonts.cinzel(color: gold, fontSize: 12)),
+                  const SizedBox(width: 4),
+                  Icon(_entry != null ? Icons.expand_less : Icons.expand_more,
+                      color: gold, size: 14),
                 ]));
             }))));
   }

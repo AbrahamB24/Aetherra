@@ -461,10 +461,10 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
             ..._userUnits
                 .where((u) => u['faction_id'] == f['id'])
                 .map((u) => u['name'] as String),
-            ...((f['unit_refs'] as List?) ?? []).map((id) {
+            ...((f['unit_refs'] as List?) ?? []).map((ref) {
               final u = GameDataService.units
-                  .where((x) => x['id'] == id).firstOrNull;
-              return u?['name'] as String? ?? '';
+                  .where((x) => x['name'] == ref).firstOrNull;
+              return u?['name'] as String? ?? (ref as String);
             }).where((n) => n.isNotEmpty),
           ];
     return _FacRowCard(
