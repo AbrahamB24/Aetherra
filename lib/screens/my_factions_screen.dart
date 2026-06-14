@@ -262,12 +262,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-            Container(
-              width: 72, height: 72,
-              decoration: BoxDecoration(
-                color: gold.withValues(alpha: 0.08),
-                border: Border.all(color: gold.withValues(alpha: 0.3))),
-              child: const Icon(Icons.auto_awesome_outlined, color: gold, size: 36)),
+            const Icon(Icons.auto_awesome_outlined, color: gold, size: 48),
             const SizedBox(height: 24),
             Text('Premium Features',
               style: GoogleFonts.cinzel(
@@ -1947,23 +1942,16 @@ class _PremiumFeature extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     decoration: BoxDecoration(
-      color: AppColors.gold.withValues(alpha: 0.04),
-      border: Border(
-        left: BorderSide(color: AppColors.gold.withValues(alpha: 0.6), width: 2))),
+      border: Border.all(color: AppColors.gold.withValues(alpha: 0.18))),
     child: Row(children: [
-      Container(
-        width: 44, height: 44,
-        decoration: BoxDecoration(
-          color: AppColors.gold.withValues(alpha: 0.12),
-          border: Border.all(color: AppColors.gold.withValues(alpha: 0.35))),
-        child: Icon(icon, color: AppColors.gold, size: 22)),
-      const SizedBox(width: 14),
+      Icon(icon, color: AppColors.gold, size: 26),
+      const SizedBox(width: 16),
       Expanded(child: Text(label,
         style: GoogleFonts.cinzel(
-          color: AppColors.grey.withValues(alpha: 0.85),
-          fontSize: 13, letterSpacing: 0.3, height: 1.4))),
+          color: AppColors.gold.withValues(alpha: 0.75),
+          fontSize: 13, letterSpacing: 0.3))),
     ]));
 }
 
