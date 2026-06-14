@@ -316,7 +316,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
             // Fields
             if (!_isLogin) ...[
+              Text('PROFILE',
+                style: GoogleFonts.cinzel(
+                  color: gold,
+                  fontSize: 10, letterSpacing: 2)),
+              const SizedBox(height: 8),
               _input(_displayName, 'Display name', false),
+              const SizedBox(height: 20),
+              Container(height: 1, width: 48, color: gold.withValues(alpha: 0.35)),
+              const SizedBox(height: 16),
+              Text('ACCOUNT',
+                style: GoogleFonts.cinzel(
+                  color: gold,
+                  fontSize: 10, letterSpacing: 2)),
               const SizedBox(height: 8),
             ],
             _input(_email, 'Email address', false),
