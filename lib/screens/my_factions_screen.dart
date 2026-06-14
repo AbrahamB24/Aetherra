@@ -1925,7 +1925,7 @@ class _UpgradeButton extends StatelessWidget {
         mode: LaunchMode.externalApplication),
       icon: const Icon(Icons.add, color: AppColors.dark, size: 16),
       label: Text('Upgrade to Premium',
-        style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1.2)),
+        style: GoogleFonts.cinzel(fontSize: 14, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.dark,
         backgroundColor: gold,
