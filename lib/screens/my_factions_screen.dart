@@ -292,7 +292,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
             const _PremiumFeature(icon: Icons.flash_on_outlined,
               label: 'Custom Abilities'),
             const SizedBox(height: 10),
-            const _PremiumFeature(icon: Icons.share_outlined,
+            const _PremiumFeature(icon: Icons.share,
               label: 'Share armies with custom units with other players'),
             const SizedBox(height: 36),
             const _UpgradeButton(url: _stripePaymentUrl),
