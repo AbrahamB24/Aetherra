@@ -230,6 +230,22 @@ class _ArmyViewScreenState extends State<ArmyViewScreen> {
 
   // â"€â"€ Share army â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
   Future<void> _shareArmy(ArmyState army) async {
+    if (!SubscriptionService.isPremium) {
+      await showAetherraSheet(context,
+        title: 'Premium Required',
+        body: Text(
+          'Sharing armies is a Premium feature.\n\nUpgrade to share your army with other players.',
+          style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13, height: 1.5)),
+        actions: [
+          SheetAction('Cancel',  AppColors.grey, () => Navigator.of(context).pop(), outlined: true),
+          SheetAction('Upgrade', AppColors.gold, () {
+            Navigator.of(context).pop();
+            Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const MyFactionsScreen()));
+          }),
+        ]);
+      return;
+    }
     showAetherraSheet<void>(context,
       title: 'Share Army',
       isDismissible: false,

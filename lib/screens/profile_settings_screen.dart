@@ -12,6 +12,7 @@ import '../widgets/aetherra_text_field.dart';
 import '../widgets/hover_icon_btn.dart';
 import '../widgets/aetherra_dialog.dart';
 import '../app_theme.dart';
+import 'my_factions_screen.dart';
 
 const _kPrivacyUrl   = 'https://aetherra.netlify.app/privacy';
 const _kTermsUrl     = 'https://aetherra.netlify.app/terms';
@@ -142,6 +143,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
 
   Future<void> _exportData() async {
+    if (!SubscriptionService.isPremium) {
+      await showAetherraSheet(context,
+        title: 'Premium Required',
+        body: Text(
+          'Downloading your army data is a Premium feature.\n\nUpgrade to export your armies.',
+          style: GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13, height: 1.5)),
+        actions: [
+          SheetAction('Cancel',  AppColors.grey, () => Navigator.of(context).pop(), outlined: true),
+          SheetAction('Upgrade', AppColors.gold, () {
+            Navigator.of(context).pop();
+            Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const MyFactionsScreen()));
+          }),
+        ]);
+      return;
+    }
     setState(() => _exporting = true);
     try {
       final armies = await ArmyService.loadAll();
