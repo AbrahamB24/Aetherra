@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
 
 /// Standard text field for the app with hover-sensitive border.
@@ -110,12 +111,12 @@ class _AetherraTextFieldState extends State<AetherraTextField> {
         minLines: widget.minLines,
         maxLines: widget.maxLines,
         textAlign: widget.textAlign,
-        style: widget.style ?? const TextStyle(color: AppColors.textLight, fontSize: 17),
+        style: widget.style ?? GoogleFonts.cinzel(color: AppColors.textLight, fontSize: 13),
         onChanged: widget.onChanged,
         onSubmitted: widget.onSubmitted,
         decoration: InputDecoration(
           hintText: widget.hintText,
-          hintStyle: widget.hintStyle ?? const TextStyle(color: AppColors.grey),
+          hintStyle: widget.hintStyle ?? GoogleFonts.cinzel(color: AppColors.grey, fontSize: 13),
           prefixIcon: widget.prefixIcon,
           suffixIcon: effectiveSuffix,
           suffixIconConstraints: (!hasText && widget.suffixIcon != null)
