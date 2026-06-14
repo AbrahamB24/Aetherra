@@ -262,7 +262,7 @@ class _MyFactionsScreenState extends State<MyFactionsScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-            const Icon(Icons.auto_awesome_outlined, color: gold, size: 48),
+            const Icon(Icons.auto_awesome, color: gold, size: 48),
             const SizedBox(height: 24),
             Text('Premium Features',
               style: GoogleFonts.cinzel(
