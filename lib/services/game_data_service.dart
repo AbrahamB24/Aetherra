@@ -266,9 +266,23 @@ class GameDataService {
         return {...u, 'abilities': abs, 'type': type, 'cost': cost};
       }).toList();
 
+      // For each user faction, inject copies of referenced official units
+      // with faction_id = the user faction id so the army builder can filter them.
+      final officialByName = { for (final u in units) u['name'] as String: u };
+      final refUnits = <Map<String, dynamic>>[];
+      for (final uf in userFactions) {
+        final refs = (uf['unit_refs'] as List?)?.cast<String>() ?? [];
+        for (final ref in refs) {
+          final official = officialByName[ref];
+          if (official != null) {
+            refUnits.add({...official, 'faction_id': uf['id'] as String});
+          }
+        }
+      }
+
       // Merge into shared lists so army builder sees user content
       factions  = [...factions,  ...userFactions];
-      units     = [...units,     ...userUnits.map(_fromDb)];
+      units     = [...units,     ...userUnits.map(_fromDb), ...refUnits];
       abilities = [...abilities, ...userAbilities];
     } catch (_) {
       userFactions = []; userUnits = []; userAbilities = [];
